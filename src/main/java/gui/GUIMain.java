@@ -41,6 +41,7 @@ public class GUIMain extends JFrame {
 
     public static int userResponsesIndex = 0;
     public static ArrayList<String> userResponses;
+    public static ArrayList<String> quotes;
 
     public static HashSet<ConsoleCommand> conCommands;
 
@@ -75,6 +76,7 @@ public class GUIMain extends JFrame {
         tabPulses = new HashSet<>();
         combinedChatPanes = new HashSet<>();
         userResponses = new ArrayList<>();
+        quotes = new ArrayList<>();
         FaceManager.init();
         SoundEngine.init();
         StyleConstants.setForeground(norm, Color.white);

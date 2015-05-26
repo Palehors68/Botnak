@@ -61,7 +61,10 @@ public class ConsoleCommand {
         CANCEL_POLL,
         NOW_PLAYING,
         SEE_SOUND_STATE,
-        SHOW_UPTIME
+        SHOW_UPTIME,
+        ADD_QUOTE,
+        REMOVE_ALL_QUOTES,
+        GET_QUOTE
     }
 
     /**

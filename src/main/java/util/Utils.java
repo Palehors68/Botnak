@@ -783,7 +783,9 @@ public class Utils {
      */
     public static ConsoleCommand getConsoleCommand(String key, String channel, User u) {
         String master = GUIMain.currentSettings.accountManager.getUserAccount().getName();
-        if (!channel.contains(master)) return null;
+        if (!channel.contains(master)) {
+        	if (!u.getLowerNick().equalsIgnoreCase(master)) return null;
+        }
         if (u != null) {
             for (ConsoleCommand c : GUIMain.conCommands) {
                 if (key.equalsIgnoreCase(c.getTrigger())) {
@@ -984,7 +986,52 @@ public class Utils {
         }
         return false;
     }
-
+    
+    /**
+     * Handles the adding of a quote
+     * 
+     * @param mess The entire message to dissect.
+     */
+    public static Response handleQuote(String mess) {
+    	Response toReturn = new Response();
+    	if (mess == null || "".equals(mess)) {
+            toReturn.setResponseText("Failed to add quote, the message is null!");
+            return toReturn;
+        }
+    	String[] split = mess.split(" ");
+    	String trigger = split[0];
+    	String quote;
+    	if (split.length > 1) {
+    		if (trigger.equalsIgnoreCase("addquote")) {
+    			//add the quote
+    			quote = mess.substring(mess.indexOf(" ") + 1, mess.length());
+    			GUIMain.quotes.add(quote);
+    			toReturn.wasSuccessful();
+    			toReturn.setResponseText("Successfully added quote!");
+    		} else {
+    			//bad command
+    			toReturn.setResponseText("Quote not added, bad command!");
+    		}
+    	} else {
+    		if (trigger.equalsIgnoreCase("removeallquotes")) {
+    			//remove all quotes
+    			GUIMain.quotes.clear();
+    			toReturn.wasSuccessful();
+    			toReturn.setResponseText("All quotes successfully removed!");
+    		} else if (trigger.equalsIgnoreCase("quote")) {
+    			quote = GUIMain.quotes.get((new Random().nextInt(GUIMain.quotes.size())));
+    			if (!quote.startsWith("\"")){
+    				quote = "\"" + quote + "\"";
+    			}
+				toReturn.wasSuccessful();
+    			toReturn.setResponseText(quote);
+    		} else {
+    			//bad command
+    			toReturn.setResponseText("Quote not added, bad command!");
+    		}
+    	}
+    	return toReturn;
+    }
     /**
      * Handles the adding/removing of a keyword and the colors.
      *

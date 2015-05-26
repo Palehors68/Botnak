@@ -23,6 +23,7 @@ import util.comm.ConsoleCommand;
 import util.misc.Donation;
 
 import javax.swing.filechooser.FileSystemView;
+
 import java.awt.*;
 import java.io.*;
 import java.net.URL;
@@ -101,6 +102,7 @@ public class Settings {
     public File namefaceFile = new File(defaultDir + File.separator + "namefaces.txt");
     public File donationsFile = new File(defaultDir + File.separator + "donations.txt");
     public File subsFile = new File(defaultDir + File.separator + "subs.txt");
+    public File quotesFile = new File(defaultDir + File.separator + "quotes.txt");
 
     //appearance
     public boolean logChat = false;
@@ -166,6 +168,10 @@ public class Settings {
             if (donationSoundDir.exists() && donationSoundDir.list().length > 0) {
                 GUIMain.log("Loading donation sounds...");
                 loadDonationSounds();
+            }
+            if (Utils.areFilesGood(quotesFile.getAbsolutePath())) {
+            	GUIMain.log("Loading quotes...");
+            	loadQuotes();
             }
             if (Utils.areFilesGood(userColFile.getAbsolutePath())) {
                 GUIMain.log("Loading user colors...");
@@ -384,7 +390,33 @@ public class Settings {
         }
     }
 
-
+    /**
+     * Quotes
+     */
+    public void loadQuotes() {
+    	try (BufferedReader br = new BufferedReader(new InputStreamReader(quotesFile.toURI().toURL().openStream()))) {
+    		String line;
+    		while ((line = br.readLine()) != null) {
+    			GUIMain.quotes.add(line);
+    		}
+    		GUIMain.log("Loaded quotes!");
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
+    
+    public void saveQuotes() {
+    	try (PrintWriter br = new PrintWriter(quotesFile)) {
+                for (String next : GUIMain.quotes) {
+                    if (next != null) {
+                        br.print(next);
+                        br.println();
+                    }
+                }
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
     /**
      * Sounds
      */
@@ -706,6 +738,9 @@ public class Settings {
         hardcoded.add(new ConsoleCommand("song", ConsoleCommand.Action.NOW_PLAYING, Constants.PERMISSION_ALL, null));
         hardcoded.add(new ConsoleCommand("soundstate", ConsoleCommand.Action.SEE_SOUND_STATE, Constants.PERMISSION_MOD, null));
         hardcoded.add(new ConsoleCommand("uptime", ConsoleCommand.Action.SHOW_UPTIME, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("quote", ConsoleCommand.Action.GET_QUOTE, Constants.PERMISSION_ALL,null));
+        hardcoded.add(new ConsoleCommand("addquote", ConsoleCommand.Action.ADD_QUOTE, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("removeallquotes", ConsoleCommand.Action.REMOVE_ALL_QUOTES, Constants.PERMISSION_MOD,null));
 
         if (Utils.areFilesGood(ccommandsFile.getAbsolutePath())) {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(ccommandsFile.toURI().toURL().openStream()))) {
