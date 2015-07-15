@@ -46,13 +46,23 @@ public class IRCBot extends MessageHandler {
 
     @Override
     public void onConnect() {
+
         GUIMain.channelSet.forEach(this::doConnect);
+
+        //TODO do people want it to follow?
+        if (GUIMain.currentSettings.accountManager.getUserAccount() != null)
+            doConnect(GUIMain.currentSettings.accountManager.getUserAccount().getName());
+        	//GUIMain.channelSet.forEach(this::doConnect);
         GUIMain.updateTitle(null);
     }
 
     public void doConnect(String channel) {
         if (!channel.startsWith("#")) channel = "#" + channel;
         GUIMain.currentSettings.accountManager.addTask(new Task(getBot(), Task.Type.JOIN_CHANNEL, channel));
+        //String channelName = "#" + channel;
+    	String channelName = channel.startsWith("#") ? channel : "#" + channel;
+        GUIMain.currentSettings.accountManager.addTask(
+                new Task(GUIMain.currentSettings.accountManager.getBot(), Task.Type.JOIN_CHANNEL, channelName));
     }
 
     /**
@@ -221,6 +231,17 @@ public class IRCBot extends MessageHandler {
                             commandResponse = Utils.handleKeyword(mess);
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveKeywords();
                             break;
+                        case ADD_QUOTE:
+                        	commandResponse = Utils.handleQuote(mess);
+                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
+                        	break;   
+                        case REMOVE_ALL_QUOTES:
+                        	commandResponse = Utils.handleQuote(mess);
+                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
+                        	break; 
+                        case GET_QUOTE:
+                        	commandResponse = Utils.handleQuote(mess);
+                        	break;
                         case SET_USER_COL:
                             commandResponse = Utils.handleColor(sender, mess, u.getColor());
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveUserColors();
@@ -247,7 +268,7 @@ public class IRCBot extends MessageHandler {
                             break;
                         case SET_SOUND_PERMISSION:
                             commandResponse = SoundEngine.getEngine().setSoundPermission(first);
-                            break;
+                            break; 
                         case SET_NAME_FACE:
                             if (first.startsWith("http")) {
                                 commandResponse = FaceManager.downloadFace(first,

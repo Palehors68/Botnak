@@ -44,6 +44,7 @@ public class GUIMain extends JFrame {
 
     public static int userResponsesIndex = 0;
     public static ArrayList<String> userResponses;
+    public static ArrayList<String> quotes;
 
     public static CopyOnWriteArraySet<ConsoleCommand> conCommands;
 
@@ -81,7 +82,10 @@ public class GUIMain extends JFrame {
         combinedChatPanes = new CopyOnWriteArraySet<>();
         viewerLists = new ConcurrentHashMap<>();
         userResponses = new ArrayList<>();
+
         ThreadEngine.init();
+
+        quotes = new ArrayList<>();
         FaceManager.init();
         SoundEngine.init();
         StyleConstants.setForeground(norm, Color.white);

@@ -65,7 +65,11 @@ public class ConsoleCommand {
         SEE_PREV_SOUND_SUB,
         SEE_PREV_SOUND_DON,
         SEE_OR_SET_REPLY_TYPE,
-        SEE_OR_SET_VOLUME
+        SEE_OR_SET_VOLUME,
+        ADD_QUOTE,
+        REMOVE_ALL_QUOTES,
+        GET_QUOTE
+
     }
 
     /**

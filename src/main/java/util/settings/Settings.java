@@ -22,6 +22,7 @@ import util.misc.Donation;
 
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.text.StyleConstants;
+
 import java.awt.*;
 import java.io.*;
 import java.net.URL;
@@ -100,6 +101,7 @@ public class Settings {
     public File donatorsFile = new File(defaultDir + File.separator + "donators.txt");
     public File donationsFile = new File(defaultDir + File.separator + "donations.txt");
     public File subsFile = new File(defaultDir + File.separator + "subs.txt");
+    public File quotesFile = new File(defaultDir + File.separator + "quotes.txt");
 
     //appearance
     public boolean logChat = false;
@@ -168,6 +170,11 @@ public class Settings {
             if (donationSoundDir.exists() && donationSoundDir.list().length > 0) {
                 GUIMain.log("Loading donation sounds...");
                 doLoadDonationSounds();
+                loadDonationSounds();
+            }
+            if (Utils.areFilesGood(quotesFile.getAbsolutePath())) {
+            	GUIMain.log("Loading quotes...");
+            	loadQuotes();
             }
             if (Utils.areFilesGood(userColFile.getAbsolutePath())) {
                 GUIMain.log("Loading user colors...");
@@ -395,7 +402,33 @@ public class Settings {
         }
     }
 
-
+    /**
+     * Quotes
+     */
+    public void loadQuotes() {
+    	try (BufferedReader br = new BufferedReader(new InputStreamReader(quotesFile.toURI().toURL().openStream()))) {
+    		String line;
+    		while ((line = br.readLine()) != null) {
+    			GUIMain.quotes.add(line);
+    		}
+    		GUIMain.log("Loaded quotes!");
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
+    
+    public void saveQuotes() {
+    	try (PrintWriter br = new PrintWriter(quotesFile)) {
+                for (String next : GUIMain.quotes) {
+                    if (next != null) {
+                        br.print(next);
+                        br.println();
+                    }
+                }
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
     /**
      * Sounds
      */
@@ -750,6 +783,9 @@ public class Settings {
         hardcoded.add(new ConsoleCommand("lastdonationsound", ConsoleCommand.Action.SEE_PREV_SOUND_DON, Constants.PERMISSION_ALL, null));
         hardcoded.add(new ConsoleCommand("botreply", ConsoleCommand.Action.SEE_OR_SET_REPLY_TYPE, Constants.PERMISSION_DEV, null));
         hardcoded.add(new ConsoleCommand("volume", ConsoleCommand.Action.SEE_OR_SET_VOLUME, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("quote", ConsoleCommand.Action.GET_QUOTE, Constants.PERMISSION_ALL,null));
+        hardcoded.add(new ConsoleCommand("addquote", ConsoleCommand.Action.ADD_QUOTE, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("removeallquotes", ConsoleCommand.Action.REMOVE_ALL_QUOTES, Constants.PERMISSION_MOD,null));
 
         if (Utils.areFilesGood(ccommandsFile.getAbsolutePath())) {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(ccommandsFile.toURI().toURL().openStream()))) {
