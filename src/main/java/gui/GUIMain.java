@@ -51,6 +51,7 @@ public class GUIMain extends JFrame {
     public static IRCViewer viewer;
     public static GUISettings settings = null;
     public static GUIStreams streams = null;
+    public static GUIEmotes emotes = null;
     public static GUIAbout aboutGUI = null;
     public static GUIStatus statusGUI = null;
     public static AuthorizeAccountGUI accountGUI = null;
@@ -249,7 +250,20 @@ public class GUIMain extends JFrame {
         dispose();
         System.exit(0);
     }
-
+    
+    
+    public void emoteButtonActionPerformed() {
+     	if (emotes == null) {
+            emotes = new GUIEmotes(userChat, this);
+         }
+    	Point p = getLocation();
+    	Dimension d = getSize();
+    	emotes.setLocation((p.x + d.width), p.y);
+         if (!emotes.isVisible()) {
+        	emotes.refreshEmotes();
+             emotes.setVisible(true);
+         }
+    }
 
     public synchronized void pulseTab(ChatPane cp) {
         if (shutDown) return;
@@ -397,6 +411,7 @@ public class GUIMain extends JFrame {
         dankLabel = new JLabel();
         scrollPane1 = new JScrollPane();
         userChat = new JTextArea();
+        emoteButton = new JButton();
 
         //======== Botnak ========
         {
@@ -704,20 +719,32 @@ public class GUIMain extends JFrame {
                 userChat.addKeyListener(new ListenerUserChat(userChat));
                 scrollPane1.setViewportView(userChat);
             }
+            
+          //---- emoteButton ----
+            emoteButton.setText(":-D");
+            emoteButton.setFocusable(false);
+            emoteButton.setToolTipText("Popup window with available emotes.");
+            emoteButton.setSize(5, userChat.getHeight());
+            emoteButton.addActionListener(e -> emoteButtonActionPerformed());
 
             GroupLayout BotnakContentPaneLayout = new GroupLayout(BotnakContentPane);
             BotnakContentPane.setLayout(BotnakContentPaneLayout);
             BotnakContentPaneLayout.setHorizontalGroup(
-                    BotnakContentPaneLayout.createParallelGroup()
+                    BotnakContentPaneLayout.createSequentialGroup()
+                       .addGroup(BotnakContentPaneLayout.createParallelGroup()
                             .addComponent(channelPane, GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
-                            .addComponent(scrollPane1)
+                            .addComponent(scrollPane1))
+                       .addContainerGap()
+                       .addComponent(emoteButton)
             );
             BotnakContentPaneLayout.setVerticalGroup(
                     BotnakContentPaneLayout.createParallelGroup()
                             .addGroup(BotnakContentPaneLayout.createSequentialGroup()
                                     .addComponent(channelPane, GroupLayout.PREFERRED_SIZE, 393, GroupLayout.PREFERRED_SIZE)
                                     .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE)
+                                    .addGroup(BotnakContentPaneLayout.createParallelGroup()
+                                    		.addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE)
+                                    		.addComponent(emoteButton))
                                     .addContainerGap())
             );
             addComponentListener(new ComponentAdapter() {
@@ -829,5 +856,6 @@ public class GUIMain extends JFrame {
     private JTextPane allChats;
     private JLabel dankLabel;
     private JScrollPane scrollPane1;
+    private JButton emoteButton;
     public static JTextArea userChat;
 }
