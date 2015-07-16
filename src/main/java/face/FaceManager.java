@@ -3,6 +3,7 @@ package face;
 import gui.GUIMain;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
+import lib.JSON.JSONException;
 import lib.pircbot.org.jibble.pircbot.User;
 import lib.scalr.Scalr;
 import thread.ThreadEngine;
@@ -163,6 +164,11 @@ public class FaceManager {
                         String regex = emote.getString("code").replaceAll("\\\\&lt\\\\;", "\\<").replaceAll("\\\\&gt\\\\;", "\\>");
                         String URL = "http://static-cdn.jtvnw.net/emoticons/v1/" + ID + "/1.0";
                         onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true));
+                        try{
+                        	Integer emoticonSet = new Integer(emote.getInt("emoticon_set"));
+                        } catch (JSONException e) {
+                        	downloadEmote(ID);
+                        }
                     }
                 } catch (Exception e) {
                     GUIMain.log("Failed to load online Twitch faces, is the API endpoint down?");

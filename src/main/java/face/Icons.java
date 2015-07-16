@@ -87,7 +87,7 @@ public class Icons {
      * @return ImageIcon the resized image
      */
 
-    private static ImageIcon sizeIcon(URL image) {
+    public static ImageIcon sizeIcon(URL image) {
         ImageIcon icon;
         try {
             BufferedImage img = ImageIO.read(image);
