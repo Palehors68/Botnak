@@ -163,12 +163,14 @@ public class FaceManager {
                         if (twitchFaceMap.get(ID) != null) continue;
                         String regex = emote.getString("code").replaceAll("\\\\&lt\\\\;", "\\<").replaceAll("\\\\&gt\\\\;", "\\>");
                         String URL = "http://static-cdn.jtvnw.net/emoticons/v1/" + ID + "/1.0";
-                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true));
+//                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true));
+                        Integer emoticonSet = 0;
                         try{
-                        	Integer emoticonSet = new Integer(emote.getInt("emoticon_set"));
+                        	emoticonSet = new Integer(emote.getInt("emoticon_set"));
                         } catch (JSONException e) {
                         	downloadEmote(ID);
                         }
+                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true, emoticonSet.intValue() * -1));
                     }
                 } catch (Exception e) {
                     GUIMain.log("Failed to load online Twitch faces, is the API endpoint down?");
@@ -472,7 +474,7 @@ public class FaceManager {
             String fileName = Utils.setExtension(String.valueOf(emote), ".png");
             File toSave = new File(GUIMain.currentSettings.twitchFaceDir.getAbsolutePath() + File.separator + fileName);
             if (download(f.getFilePath(), toSave)) {
-                TwitchFace newFace = new TwitchFace(f.getRegex(), toSave.getAbsolutePath(), true);
+                TwitchFace newFace = new TwitchFace(f.getRegex(), toSave.getAbsolutePath(), true, f.getEmoticonSet());
                 twitchFaceMap.put(emote, newFace);
                 return newFace;
             }
