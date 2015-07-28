@@ -592,7 +592,7 @@ public class Settings {
             FaceManager.twitchFaceMap.keySet().stream().filter(s -> s != null && FaceManager.twitchFaceMap.get(s) != null)
                     .forEach(s -> {
                         TwitchFace fa = FaceManager.twitchFaceMap.get(s);
-                        br.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()));
+                        br.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()) + "," + fa.getEmoticonSet());
                     });
         } catch (Exception e) {
             GUIMain.log(e);
@@ -611,7 +611,8 @@ public class Settings {
                     int emoteID = Integer.parseInt(split[0]);
                     TwitchFace tf = new TwitchFace(split[1],
                             new File(twitchFaceDir + File.separator + String.valueOf(emoteID) + ".png").getAbsolutePath(),
-                            Boolean.parseBoolean(split[2]));
+                            Boolean.parseBoolean(split[2]),
+                            Integer.parseInt(split[3]));
                     FaceManager.twitchFaceMap.put(emoteID, tf);
                 } catch (Exception e) {
                     GUIMain.log(e);
