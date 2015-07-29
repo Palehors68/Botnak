@@ -158,10 +158,6 @@ public class GUIEmotes extends JFrame {
 				panel.add(emote);
 			}
 			bigPanel.add(panel);
-			if (sortedEntry.getKey() < 0) {
-				bigPanel.add(new JSeparator());
-				bigPanel.add(new JSeparator());
-			}
 		}
 	}
 
