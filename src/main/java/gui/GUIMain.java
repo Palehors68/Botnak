@@ -343,6 +343,11 @@ public class GUIMain extends JFrame {
         //TODO viewer.getViewer().sendRawMessage();
     }
 
+    private void ffzEmotesToggleItemStateChanged() {
+    	GUIEmotes.setFfzEmoteToggle(ffzEmotesToggle.isSelected());
+    	emotes.refreshEmotes();
+    }
+    
     private void projectGithubOptionActionPerformed() {
         Utils.openWebPage("https://github.com/Gocnak/Botnak/");
     }
@@ -375,6 +380,7 @@ public class GUIMain extends JFrame {
         radioButtonMenuItem3 = new JRadioButtonMenuItem();
         radioButtonMenuItem2 = new JRadioButtonMenuItem();
         autoReconnectToggle = new JCheckBoxMenuItem();
+        ffzEmotesToggle = new JCheckBoxMenuItem();
         alwaysOnTopToggle = new JCheckBoxMenuItem();
         settingsOption = new JMenuItem();
         toolsMenu = new JMenu();
@@ -489,6 +495,12 @@ public class GUIMain extends JFrame {
                     autoReconnectToggle.setSelected(true);
                     autoReconnectToggle.addItemListener(e -> autoReconnectToggleItemStateChanged(e));
                     preferencesMenu.add(autoReconnectToggle);
+                    
+                    //---- ffzEmotesToggle ----
+                    ffzEmotesToggle.setText("Enable FFZ Emotes");
+                    ffzEmotesToggle.setSelected(true);
+                    ffzEmotesToggle.addItemListener(e -> ffzEmotesToggleItemStateChanged());
+                    preferencesMenu.add(ffzEmotesToggle);
 
                     //---- alwaysOnTopToggle ----
                     alwaysOnTopToggle.setText("Always On Top");
@@ -846,6 +858,7 @@ public class GUIMain extends JFrame {
     private JRadioButtonMenuItem radioButtonMenuItem3;
     private JRadioButtonMenuItem radioButtonMenuItem2;
     private JCheckBoxMenuItem autoReconnectToggle;
+    private JCheckBoxMenuItem ffzEmotesToggle;
     private JCheckBoxMenuItem alwaysOnTopToggle;
     private JMenuItem settingsOption;
     private JMenu toolsMenu;

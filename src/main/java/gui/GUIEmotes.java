@@ -35,6 +35,10 @@ public class GUIEmotes extends JFrame {
 		dispose();
 	}
 
+	public static void setFfzEmoteToggle(boolean newBool){
+		ffzEmotesToggle = newBool;
+	}
+
 	/**
 	 * Emote regex looks something like this: :-(p|P) where the emote can end in either a 'p' or 'P'.
 	 * So this rebuilds the emote using the | char as the driver. Since the emote can use the char on
@@ -109,7 +113,7 @@ public class GUIEmotes extends JFrame {
 				emoteName = emoteName.replaceAll("\\[", "").replaceAll("\\]", "");
 				emote.setName(emoteName);
 				emote.setToolTipText(emoteName);
-				
+
 				try{
 					image = new File(tf.getFilePath()).toURI().toURL();
 					emote.setIcon(Icons.sizeIcon(image));
@@ -163,71 +167,73 @@ public class GUIEmotes extends JFrame {
 			}
 			bigPanel.add(panel);
 		}
-		
-		for (Map.Entry<String, ArrayList<FrankerFaceZ>> ffzEntry : FaceManager.ffzFaceMap.entrySet()) {
-			panel = new JPanel();
-			panel.setLayout(new GridLayout(0, 8));
-			panel.setVisible(true);
-			for (FrankerFaceZ ffz : ffzEntry.getValue()) {
-				emote = new JLabel();
-				emote.setOpaque(true);
-				emote.setHorizontalAlignment(SwingConstants.CENTER);
-				emote.setVerticalAlignment(SwingConstants.CENTER);
-				emote.setBackground(Color.BLACK);
-				emoteName = ffz.getRegex();
-				emote.setName(emoteName);
-				emote.setToolTipText(emoteName);
-				try{
-					image = new File(ffz.getFilePath()).toURI().toURL();
-					emote.setIcon(Icons.sizeIcon(image));
-				} catch (MalformedURLException e) {
-					GUIMain.log(e);
+
+		if (ffzEmotesToggle) {
+			for (Map.Entry<String, ArrayList<FrankerFaceZ>> ffzEntry : FaceManager.ffzFaceMap.entrySet()) {
+				panel = new JPanel();
+				panel.setLayout(new GridLayout(0, 8));
+				panel.setVisible(true);
+				for (FrankerFaceZ ffz : ffzEntry.getValue()) {
+					emote = new JLabel();
+					emote.setOpaque(true);
+					emote.setHorizontalAlignment(SwingConstants.CENTER);
+					emote.setVerticalAlignment(SwingConstants.CENTER);
+					emote.setBackground(Color.BLACK);
+					emoteName = ffz.getRegex();
+					emote.setName(emoteName);
+					emote.setToolTipText(emoteName);
+					try{
+						image = new File(ffz.getFilePath()).toURI().toURL();
+						emote.setIcon(Icons.sizeIcon(image));
+					} catch (MalformedURLException e) {
+						GUIMain.log(e);
+					}
+					emote.addMouseListener(new MouseListener() {
+						@Override
+						public void mouseReleased(java.awt.event.MouseEvent e) {
+							JLabel emote = (JLabel)e.getSource();
+							emote.setBackground(Color.DARK_GRAY);
+
+						}
+
+						@Override
+						public void mousePressed(java.awt.event.MouseEvent e) {
+							JLabel emote = (JLabel)e.getSource();
+							emote.setBackground(Color.WHITE);
+
+						}
+
+						@Override
+						public void mouseExited(java.awt.event.MouseEvent e) {
+							JLabel emote = (JLabel)e.getSource();
+							emote.setBackground(Color.BLACK);
+
+						}
+
+						@Override
+						public void mouseEntered(java.awt.event.MouseEvent e) {
+							JLabel emote = (JLabel)e.getSource();
+							emote.setBackground(Color.DARK_GRAY);
+
+						}
+
+						@Override
+						public void mouseClicked(java.awt.event.MouseEvent e) {
+							JLabel emote = (JLabel)e.getSource();
+							//if the chat box is empty, append the emote + space, otherwise
+							//if the current text doesn't end in a space character, append one first. Otherwise, just put the emote
+							userChat.append(userChat.getText().length() == 0 ? 
+									emote.getName() + " " :
+										userChat.getText().charAt(userChat.getText().length()-1) == ' ' ? 
+												emote.getName() + " " : 
+													" " + emote.getName() + " ");
+
+						}
+					});
+					panel.add(emote);
 				}
-				emote.addMouseListener(new MouseListener() {
-					@Override
-					public void mouseReleased(java.awt.event.MouseEvent e) {
-						JLabel emote = (JLabel)e.getSource();
-						emote.setBackground(Color.DARK_GRAY);
-
-					}
-
-					@Override
-					public void mousePressed(java.awt.event.MouseEvent e) {
-						JLabel emote = (JLabel)e.getSource();
-						emote.setBackground(Color.WHITE);
-
-					}
-
-					@Override
-					public void mouseExited(java.awt.event.MouseEvent e) {
-						JLabel emote = (JLabel)e.getSource();
-						emote.setBackground(Color.BLACK);
-
-					}
-
-					@Override
-					public void mouseEntered(java.awt.event.MouseEvent e) {
-						JLabel emote = (JLabel)e.getSource();
-						emote.setBackground(Color.DARK_GRAY);
-
-					}
-
-					@Override
-					public void mouseClicked(java.awt.event.MouseEvent e) {
-						JLabel emote = (JLabel)e.getSource();
-						//if the chat box is empty, append the emote + space, otherwise
-						//if the current text doesn't end in a space character, append one first. Otherwise, just put the emote
-						userChat.append(userChat.getText().length() == 0 ? 
-								emote.getName() + " " :
-									userChat.getText().charAt(userChat.getText().length()-1) == ' ' ? 
-											emote.getName() + " " : 
-												" " + emote.getName() + " ");
-
-					}
-				});
-				panel.add(emote);
+				bigPanel.add(panel);
 			}
-			bigPanel.add(panel);
 		}
 	}
 
@@ -310,7 +316,7 @@ public class GUIEmotes extends JFrame {
 	public JScrollPane scrollPane;
 	private JTextArea userChat;
 	private GUIMain guiMain;
-
+	private static boolean ffzEmotesToggle;
 
 	// JFormDesigner - End of variables declaration  //GEN-END:variables
 
