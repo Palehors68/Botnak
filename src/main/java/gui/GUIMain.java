@@ -1,6 +1,7 @@
 package gui;
 
 import face.FaceManager;
+import face.Icons;
 import gui.listeners.ListenerName;
 import gui.listeners.ListenerURL;
 import gui.listeners.ListenerUserChat;
@@ -18,15 +19,19 @@ import util.Utils;
 import util.comm.Command;
 import util.comm.ConsoleCommand;
 import util.settings.Settings;
+import face.TwitchFace;
 
 import javax.swing.*;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
@@ -725,7 +730,8 @@ public class GUIMain extends JFrame {
             }
             
           //---- emoteButton ----
-            emoteButton.setText(":-D");
+            emoteButton.setText(":-)");
+            setChatButtonIcon();
             emoteButton.setFocusable(false);
             emoteButton.setToolTipText("Popup window with available emotes.");
             emoteButton.setSize(5, userChat.getHeight());
@@ -802,6 +808,28 @@ public class GUIMain extends JFrame {
         // JFormDesigner - End of component initialization  //GEN-END:initComponents
     }
 
+    private void setChatButtonIcon() {
+    	Thread runner = new Thread(new Runnable(){
+    	     public void run() {
+    	    	 try{
+    	     		while (!FaceManager.doneWithTwitchFaces){
+    	     			try{
+    	     				Thread.sleep(1000);
+    	     			} catch (InterruptedException e) {
+    	     				GUIMain.log(e);
+    	     			}
+    	     		}
+    	     		emoteButton.setIcon(Icons.sizeIcon(new File(FaceManager.twitchFaceMap.get(1).getFilePath()).toURI().toURL()));
+    	     		emoteButton.setText("");
+    	     		
+    	     	} catch (MalformedURLException e) {
+    	     		GUIMain.log(e);
+    	     	}
+    	     }
+    	});  
+    	runner.start();
+    }
+    
     // JFormDesigner - Variables declaration - DO NOT MODIFY  //GEN-BEGIN:variables
     // Generated using JFormDesigner Evaluation license - Nick K
     private JMenuBar menuBar1;
