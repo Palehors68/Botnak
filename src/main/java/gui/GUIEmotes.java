@@ -5,6 +5,7 @@ import javax.swing.*;
 import face.FaceManager;
 import face.Icons;
 import face.TwitchFace;
+import face.FrankerFaceZ;
 
 import java.awt.*;
 import java.awt.event.KeyAdapter;
@@ -17,6 +18,7 @@ import java.util.TreeMap;
 import java.util.SortedMap;
 import java.util.TreeSet;
 import java.util.SortedSet;
+import java.util.ArrayList;
 import java.net.MalformedURLException;
 
 
@@ -64,13 +66,15 @@ public class GUIEmotes extends JFrame {
 	public void refreshEmotes() {
 		JLabel emote;
 		String emoteName;
+		TwitchFace tf;
+		URL image;
 
 		while (!(FaceManager.doneWithTwitchFaces && FaceManager.doneWithFrankerFaces)) {
 			try{
 				Thread.sleep(1000);
 
 			} catch (InterruptedException e) {
-				System.out.println(e.getMessage());
+				GUIMain.log(e);
 			}
 		}
 		if (this.bigPanel.getComponentCount() > 0) this.bigPanel.removeAll();
@@ -95,7 +99,7 @@ public class GUIEmotes extends JFrame {
 			panel.setLayout(new GridLayout(0, 8));
 			panel.setVisible(true);
 			for (Integer emoteID : sortedEntry.getValue()){
-				TwitchFace tf = FaceManager.twitchFaceMap.get(emoteID);
+				tf = FaceManager.twitchFaceMap.get(emoteID);
 				emote = new JLabel();
 				emote.setOpaque(true);
 				emote.setHorizontalAlignment(SwingConstants.CENTER);
@@ -105,14 +109,80 @@ public class GUIEmotes extends JFrame {
 				emoteName = emoteName.replaceAll("\\[", "").replaceAll("\\]", "");
 				emote.setName(emoteName);
 				emote.setToolTipText(emoteName);
-				URL image;
+				
 				try{
 					image = new File(tf.getFilePath()).toURI().toURL();
 					emote.setIcon(Icons.sizeIcon(image));
 				} catch (MalformedURLException e) {
-					System.out.println(e.getMessage());
+					GUIMain.log(e);
 				}
 
+				emote.addMouseListener(new MouseListener() {
+					@Override
+					public void mouseReleased(java.awt.event.MouseEvent e) {
+						JLabel emote = (JLabel)e.getSource();
+						emote.setBackground(Color.DARK_GRAY);
+
+					}
+
+					@Override
+					public void mousePressed(java.awt.event.MouseEvent e) {
+						JLabel emote = (JLabel)e.getSource();
+						emote.setBackground(Color.WHITE);
+
+					}
+
+					@Override
+					public void mouseExited(java.awt.event.MouseEvent e) {
+						JLabel emote = (JLabel)e.getSource();
+						emote.setBackground(Color.BLACK);
+
+					}
+
+					@Override
+					public void mouseEntered(java.awt.event.MouseEvent e) {
+						JLabel emote = (JLabel)e.getSource();
+						emote.setBackground(Color.DARK_GRAY);
+
+					}
+
+					@Override
+					public void mouseClicked(java.awt.event.MouseEvent e) {
+						JLabel emote = (JLabel)e.getSource();
+						//if the chat box is empty, append the emote + space, otherwise
+						//if the current text doesn't end in a space character, append one first. Otherwise, just put the emote
+						userChat.append(userChat.getText().length() == 0 ? 
+								emote.getName() + " " :
+									userChat.getText().charAt(userChat.getText().length()-1) == ' ' ? 
+											emote.getName() + " " : 
+												" " + emote.getName() + " ");
+
+					}
+				});
+				panel.add(emote);
+			}
+			bigPanel.add(panel);
+		}
+		
+		for (Map.Entry<String, ArrayList<FrankerFaceZ>> ffzEntry : FaceManager.ffzFaceMap.entrySet()) {
+			panel = new JPanel();
+			panel.setLayout(new GridLayout(0, 8));
+			panel.setVisible(true);
+			for (FrankerFaceZ ffz : ffzEntry.getValue()) {
+				emote = new JLabel();
+				emote.setOpaque(true);
+				emote.setHorizontalAlignment(SwingConstants.CENTER);
+				emote.setVerticalAlignment(SwingConstants.CENTER);
+				emote.setBackground(Color.BLACK);
+				emoteName = ffz.getRegex();
+				emote.setName(emoteName);
+				emote.setToolTipText(emoteName);
+				try{
+					image = new File(ffz.getFilePath()).toURI().toURL();
+					emote.setIcon(Icons.sizeIcon(image));
+				} catch (MalformedURLException e) {
+					GUIMain.log(e);
+				}
 				emote.addMouseListener(new MouseListener() {
 					@Override
 					public void mouseReleased(java.awt.event.MouseEvent e) {

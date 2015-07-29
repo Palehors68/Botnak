@@ -49,6 +49,7 @@ public class GUIMain extends JFrame {
 
     public static int userResponsesIndex = 0;
     public static ArrayList<String> userResponses;
+    public static ArrayList<String> quotes;
 
     public static CopyOnWriteArraySet<ConsoleCommand> conCommands;
 
@@ -87,7 +88,10 @@ public class GUIMain extends JFrame {
         combinedChatPanes = new CopyOnWriteArraySet<>();
         viewerLists = new ConcurrentHashMap<>();
         userResponses = new ArrayList<>();
+
         ThreadEngine.init();
+
+        quotes = new ArrayList<>();
         FaceManager.init();
         SoundEngine.init();
         StyleConstants.setForeground(norm, Color.white);
@@ -726,11 +730,12 @@ public class GUIMain extends JFrame {
             }
             
           //---- emoteButton ----
-            emoteButton.setText(":-)");
+            emoteButton.setText("Wait...");
             setChatButtonIcon();
             emoteButton.setFocusable(false);
             emoteButton.setToolTipText("Popup window with available emotes.");
             emoteButton.setSize(5, userChat.getHeight());
+            emoteButton.setEnabled(false);
             emoteButton.addActionListener(e -> emoteButtonActionPerformed());
 
             GroupLayout BotnakContentPaneLayout = new GroupLayout(BotnakContentPane);
@@ -808,7 +813,7 @@ public class GUIMain extends JFrame {
     	Thread runner = new Thread(new Runnable(){
     	     public void run() {
     	    	 try{
-    	     		while (!FaceManager.doneWithTwitchFaces){
+    	     		while (!(FaceManager.doneWithTwitchFaces && FaceManager.doneWithFrankerFaces)){
     	     			try{
     	     				Thread.sleep(1000);
     	     			} catch (InterruptedException e) {
@@ -821,6 +826,7 @@ public class GUIMain extends JFrame {
     	     	} catch (MalformedURLException e) {
     	     		GUIMain.log(e);
     	     	}
+    	    	 emoteButton.setEnabled(true);
     	     }
     	});  
     	runner.start();
