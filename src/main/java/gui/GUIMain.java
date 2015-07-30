@@ -345,7 +345,9 @@ public class GUIMain extends JFrame {
 
     private void ffzEmotesToggleItemStateChanged() {
     	GUIEmotes.setFfzEmoteToggle(ffzEmotesToggle.isSelected());
-    	emotes.refreshEmotes();
+    	if (emotes != null){
+    		emotes.refreshEmotes();
+    	}
     }
     
     private void projectGithubOptionActionPerformed() {
