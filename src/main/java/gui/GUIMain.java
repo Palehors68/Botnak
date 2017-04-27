@@ -1,6 +1,7 @@
 package gui;
 
 import face.FaceManager;
+import face.Icons;
 import gui.listeners.ListenerName;
 import gui.listeners.ListenerURL;
 import gui.listeners.ListenerUserChat;
@@ -9,6 +10,7 @@ import irc.IRCBot;
 import irc.IRCViewer;
 import irc.message.Message;
 import irc.message.MessageQueue;
+import lib.pircbot.org.jibble.pircbot.Channel;
 import sound.SoundEngine;
 import thread.TabPulse;
 import thread.ThreadEngine;
@@ -18,21 +20,29 @@ import util.Utils;
 import util.comm.Command;
 import util.comm.ConsoleCommand;
 import util.settings.Settings;
+import face.TwitchFace;
 
 import javax.swing.*;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
+
 import java.awt.*;
 import java.awt.event.*;
 import java.io.File;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
+import javax.swing.GroupLayout.Alignment;
+import javax.swing.LayoutStyle.ComponentPlacement;
 
 public class GUIMain extends JFrame {
 
+	public static boolean _debug = false;
+	
     public static ConcurrentHashMap<String, Color> userColMap;
     public static CopyOnWriteArraySet<Command> commandSet;
     public static CopyOnWriteArraySet<String> channelSet;
@@ -44,6 +54,7 @@ public class GUIMain extends JFrame {
 
     public static int userResponsesIndex = 0;
     public static ArrayList<String> userResponses;
+    public static ArrayList<String> quotes;
 
     public static CopyOnWriteArraySet<ConsoleCommand> conCommands;
 
@@ -51,11 +62,15 @@ public class GUIMain extends JFrame {
     public static IRCViewer viewer;
     public static GUISettings settings = null;
     public static GUIStreams streams = null;
+    public static GUIEmotes emotes = null;
+    public static GUIVote voteGUI = null;
     public static GUIAbout aboutGUI = null;
     public static GUIStatus statusGUI = null;
+    public static GUITextCommandEditor textEditorGUI = null;
     public static AuthorizeAccountGUI accountGUI = null;
 
     public static boolean shutDown = false;
+    
 
     public static SimpleAttributeSet norm = new SimpleAttributeSet();
 
@@ -69,7 +84,8 @@ public class GUIMain extends JFrame {
 
     private static ChatPane systemLogsPane;
 
-    public GUIMain() {
+    public GUIMain(boolean debug) {
+    	_debug = debug;
         new MessageQueue().start();
         instance = this;
         channelSet = new CopyOnWriteArraySet<>();
@@ -81,7 +97,10 @@ public class GUIMain extends JFrame {
         combinedChatPanes = new CopyOnWriteArraySet<>();
         viewerLists = new ConcurrentHashMap<>();
         userResponses = new ArrayList<>();
+
         ThreadEngine.init();
+
+        quotes = new ArrayList<>();
         FaceManager.init();
         SoundEngine.init();
         StyleConstants.setForeground(norm, Color.white);
@@ -99,7 +118,19 @@ public class GUIMain extends JFrame {
         heartbeat.addHeartbeatThread(new DonationCheck());
         heartbeat.start();
     }
+    
 
+    public static ChatPane getCurrentPane() {
+        ChatPane toReturn;
+        int index = channelPane.getSelectedIndex();
+        if (index == 0) return getSystemLogsPane();
+        toReturn = Utils.getChatPane(index);
+        if (toReturn == null) {
+            toReturn = Utils.getCombinedChatPane(index);
+        }
+        return toReturn == null ? getSystemLogsPane() : toReturn;
+    }
+    
     public static boolean loadedSettingsUser() {
         return currentSettings != null && currentSettings.accountManager.getUserAccount() != null;
     }
@@ -112,6 +143,30 @@ public class GUIMain extends JFrame {
         return !commandSet.isEmpty();
     }
 
+    public void setBotReplyRadioButton(){
+    	switch (currentSettings.botReplyType) {
+    	case 0:
+    		radioButtonMenuItem2.setSelected(true);
+    		break;
+    	case 1:
+    		radioButtonMenuItem3.setSelected(true);
+    		break;
+    	case 2:
+    		radioButtonMenuItem1.setSelected(true);
+    		break;
+    	default:
+    		break;
+    	}
+    }
+    
+    public void setEmoteSwitches(){
+    	ffzEmotesToggle.setSelected(currentSettings.ffzEmotes);
+    	subEmotesToggle.setSelected(currentSettings.subEmotes);
+    	
+    	GUIEmotes.setFfzEmoteToggle(currentSettings.ffzEmotes);
+    	GUIEmotes.setSubEmoteToggle(currentSettings.subEmotes);
+    }
+    
     public void chatButtonActionPerformed() {
         userResponsesIndex = 0;
         String channel = channelPane.getTitleAt(channelPane.getSelectedIndex());
@@ -205,7 +260,7 @@ public class GUIMain extends JFrame {
 
     public static void updateTitle(String viewerCount) {
         StringBuilder stanSB = new StringBuilder();
-        stanSB.append("Botnak ");
+        stanSB.append("PaleHorsBot ");
         if (viewerCount != null) {
             stanSB.append("| ");
             stanSB.append(viewerCount);
@@ -226,6 +281,13 @@ public class GUIMain extends JFrame {
 
     public void exitButtonActionPerformed() {
         shutDown = true;
+        for (String c : channelSet){
+        	Channel ch = currentSettings.channelManager.getChannel(c);
+        	if (ch != null){
+        		ch.clear();
+        	}
+        	
+        }
         if (viewer != null) {
             viewer.close(false);
         }
@@ -237,6 +299,7 @@ public class GUIMain extends JFrame {
             tabPulses.clear();
         }
         SoundEngine.getEngine().close();
+        
         currentSettings.save();
         heartbeat.interrupt();
         if (currentSettings.logChat) {
@@ -246,10 +309,55 @@ public class GUIMain extends JFrame {
                 Utils.logChat(cp.getText().split("\\n"), s, 2);
             }
         }
+        
+        
         dispose();
         System.exit(0);
     }
+    
+    
+    public void emoteButtonActionPerformed() {
+     	if (emotes == null) {
+            emotes = new GUIEmotes(userChat, this);
+         }
+     	//emotes.scanUserSubscriptions();
+    	Point p = getLocation();
+    	Dimension d = getSize();
+    	GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+    	GraphicsDevice[] gds = ge.getScreenDevices();
 
+    	int currentMonitor = -1, currentPosition = (p.x < 0) ? 0 : p.x, offset = 0;
+    	while (currentPosition >= 0){
+    		try{
+    			offset += gds[(currentMonitor)].getDisplayMode().getWidth();
+    		} catch (Exception e) {
+    			//ignore
+    		}
+    		currentPosition -= gds[++currentMonitor].getDisplayMode().getWidth();
+    	} 
+    	
+    	if (p.x + d.width + emotes.getSize().width > (offset + gds[currentMonitor].getDisplayMode().getWidth())){
+    		emotes.setLocation((p.x - emotes.getSize().width),p.y);
+    	} else {
+    		emotes.setLocation((p.x + d.width), p.y);
+    	}
+         if (!emotes.isVisible()) {
+        	emotes.refreshEmotes();
+             emotes.setVisible(true);
+         }
+    }
+    
+    public void tabChanged(){
+    	if (emotes != null)
+    		emotes.refreshEmotes();
+    	
+    	if (textEditorGUI != null)
+    		textEditorGUI.refreshList();
+    }
+    
+    public void setWhisperModeToggle(){
+    	whisperModeToggle.setSelected(currentSettings.botWhisperMode);
+    }
 
     public synchronized void pulseTab(ChatPane cp) {
         if (shutDown) return;
@@ -274,7 +382,23 @@ public class GUIMain extends JFrame {
     private void autoReconnectToggleItemStateChanged(ItemEvent e) {
         // TODO check login status of both accounts to determine if they need relogging in, upon enable
     }
+    
+    private void setBotReplyToAll(){
+    	currentSettings.botReplyType = 2;
+    }
+    
+    private void setBotReplyToUser(){
+    	currentSettings.botReplyType = 1;
+    }
+    
+    private void setBotReplyToNone(){
+    	currentSettings.botReplyType = 0;
+    }
 
+    private void whisperModeToggleStateChanged(){
+    	currentSettings.botWhisperMode = whisperModeToggle.isSelected();
+    }
+    
     private void alwaysOnTopToggleItemStateChanged(ItemEvent e) {
         Window[] windows = getWindows();
         for (Window w : windows) {
@@ -296,15 +420,22 @@ public class GUIMain extends JFrame {
     }
 
     private void startVoteOptionActionPerformed() {
-        // TODO add your code here
+    		voteGUI = new GUIVote();
+    		voteGUI.setVisible(true);	
     }
 
     private void soundsToggleItemStateChanged(ItemEvent e) {
         // TODO add your code here
+    	currentSettings.soundsEnabled = soundsToggle.isSelected();
     }
 
-    private void manageTextCommandsOptionActionPerformed() {
-        // TODO add your code here
+    public void manageTextCommandsOptionActionPerformed(Channel ch) {
+        
+        textEditorGUI = new GUITextCommandEditor(ch);
+                
+        if (!textEditorGUI.isVisible()){
+        	textEditorGUI.setVisible(true);
+        }
     }
 
     private void updateStatusOptionActionPerformed() {
@@ -320,6 +451,20 @@ public class GUIMain extends JFrame {
         //TODO viewer.getViewer().sendRawMessage();
     }
 
+    private void ffzEmotesToggleItemStateChanged() {
+    	GUIEmotes.setFfzEmoteToggle(ffzEmotesToggle.isSelected());
+    	if (emotes != null){
+    		emotes.refreshEmotes();
+    	}
+    }
+    
+    private void subEmotesToggleItemStateChanged() {
+    	GUIEmotes.setSubEmoteToggle(subEmotesToggle.isSelected());
+    	if (emotes != null){
+    		emotes.refreshEmotes();
+    	}
+    }
+    
     private void projectGithubOptionActionPerformed() {
         Utils.openWebPage("https://github.com/Gocnak/Botnak/");
     }
@@ -352,7 +497,10 @@ public class GUIMain extends JFrame {
         radioButtonMenuItem3 = new JRadioButtonMenuItem();
         radioButtonMenuItem2 = new JRadioButtonMenuItem();
         autoReconnectToggle = new JCheckBoxMenuItem();
+        ffzEmotesToggle = new JCheckBoxMenuItem();
+        subEmotesToggle = new JCheckBoxMenuItem();
         alwaysOnTopToggle = new JCheckBoxMenuItem();
+        whisperModeToggle = new JCheckBoxMenuItem();
         settingsOption = new JMenuItem();
         toolsMenu = new JMenu();
         startRaffleOption = new JMenuItem();
@@ -397,12 +545,13 @@ public class GUIMain extends JFrame {
         dankLabel = new JLabel();
         scrollPane1 = new JScrollPane();
         userChat = new JTextArea();
+        emoteButton = new JButton();
 
         //======== Botnak ========
         {
             setMinimumSize(new Dimension(680, 504));
-            setName("Botnak Control Panel");
-            setTitle("Botnak | Please go to Preferences->Settings!");
+            setName("PaleHorsBot Control Panel");
+            setTitle("PaleHorsBot | Please go to Preferences->Settings!");
             setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
             setIconImage(new ImageIcon(getClass().getResource("/image/icon.png")).getImage());
             Container BotnakContentPane = getContentPane();
@@ -415,7 +564,7 @@ public class GUIMain extends JFrame {
                     fileMenu.setText("File");
 
                     //---- openBotnakFolderOption ----
-                    openBotnakFolderOption.setText("Open Botnak Folder");
+                    openBotnakFolderOption.setText("Open PalehorsBot Folder");
                     openBotnakFolderOption.addActionListener(e -> openBotnakFolderOptionActionPerformed());
                     fileMenu.add(openBotnakFolderOption);
 
@@ -447,16 +596,26 @@ public class GUIMain extends JFrame {
 
                         //---- radioButtonMenuItem1 ----
                         radioButtonMenuItem1.setText("Reply to all");
+                        radioButtonMenuItem1.addActionListener(e -> setBotReplyToAll());
                         botReplyMenu.add(radioButtonMenuItem1);
 
                         //---- radioButtonMenuItem3 ----
                         radioButtonMenuItem3.setText("Reply to you");
+                        radioButtonMenuItem3.addActionListener(e -> setBotReplyToUser());
                         botReplyMenu.add(radioButtonMenuItem3);
 
                         //---- radioButtonMenuItem2 ----
                         radioButtonMenuItem2.setText("Reply to none");
-                        radioButtonMenuItem2.setSelected(true);
+                        radioButtonMenuItem2.addActionListener(e -> setBotReplyToNone());
                         botReplyMenu.add(radioButtonMenuItem2);
+                        botReplyMenu.addSeparator();
+                        
+                      //---- whisperModeToggle ----
+                        whisperModeToggle.setText("Whisper Mode");
+                        whisperModeToggle.setSelected(false);
+                        whisperModeToggle.addActionListener(e -> whisperModeToggleStateChanged());
+                        botReplyMenu.add(whisperModeToggle);
+                        
                     }
                     preferencesMenu.add(botReplyMenu);
 
@@ -465,6 +624,18 @@ public class GUIMain extends JFrame {
                     autoReconnectToggle.setSelected(true);
                     autoReconnectToggle.addItemListener(e -> autoReconnectToggleItemStateChanged(e));
                     preferencesMenu.add(autoReconnectToggle);
+                    
+                  //---- subEmotesToggle ----
+                    subEmotesToggle.setText("Enable Sub Emotes");
+                    subEmotesToggle.setSelected(true);
+                    subEmotesToggle.addItemListener(e -> subEmotesToggleItemStateChanged());
+                    preferencesMenu.add(subEmotesToggle);
+                    
+                    //---- ffzEmotesToggle ----
+                    ffzEmotesToggle.setText("Enable FFZ Emotes");
+                    ffzEmotesToggle.setSelected(true);
+                    ffzEmotesToggle.addItemListener(e -> ffzEmotesToggleItemStateChanged());
+                    preferencesMenu.add(ffzEmotesToggle);
 
                     //---- alwaysOnTopToggle ----
                     alwaysOnTopToggle.setText("Always On Top");
@@ -560,7 +731,7 @@ public class GUIMain extends JFrame {
 
                     //---- manageTextCommandsOption ----
                     manageTextCommandsOption.setText("Manage Text Commands...");
-                    manageTextCommandsOption.addActionListener(e -> manageTextCommandsOptionActionPerformed());
+                    manageTextCommandsOption.addActionListener(e -> manageTextCommandsOptionActionPerformed(null));
                     toolsMenu.add(manageTextCommandsOption);
                     toolsMenu.addSeparator();
 
@@ -669,13 +840,11 @@ public class GUIMain extends JFrame {
                 channelPane.setAutoscrolls(true);
                 channelPane.addChangeListener(Constants.tabListener);
                 channelPane.addMouseListener(Constants.tabListener);
+//                channelPane.add
 
                 //======== allChatsScroll ========
                 {
                     allChatsScroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-
-                    //---- allChats ----
-                    allChats.setEditable(false);
                     allChats.setForeground(Color.white);
                     allChats.setBackground(Color.black);
                     allChats.setFont(new Font("Calibri", Font.PLAIN, 16));
@@ -704,22 +873,41 @@ public class GUIMain extends JFrame {
                 userChat.addKeyListener(new ListenerUserChat(userChat));
                 scrollPane1.setViewportView(userChat);
             }
+            
+          //---- emoteButton ----
+            emoteButton.setText("Wait...");
+            setChatButtonIcon();
+            emoteButton.setFocusable(false);
+            emoteButton.setToolTipText("Popup window with available emotes.");
+            emoteButton.setSize(5, userChat.getHeight());
+            emoteButton.setEnabled(false);
+            emoteButton.addActionListener(e -> emoteButtonActionPerformed());
 
             GroupLayout BotnakContentPaneLayout = new GroupLayout(BotnakContentPane);
-            BotnakContentPane.setLayout(BotnakContentPaneLayout);
             BotnakContentPaneLayout.setHorizontalGroup(
-                    BotnakContentPaneLayout.createParallelGroup()
-                            .addComponent(channelPane, GroupLayout.DEFAULT_SIZE, 0, Short.MAX_VALUE)
-                            .addComponent(scrollPane1)
+            	BotnakContentPaneLayout.createParallelGroup(Alignment.LEADING)
+            		.addGroup(BotnakContentPaneLayout.createSequentialGroup()
+            			.addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 615, GroupLayout.PREFERRED_SIZE)
+            			.addPreferredGap(ComponentPlacement.UNRELATED)
+            			.addComponent(emoteButton, GroupLayout.PREFERRED_SIZE, 33, GroupLayout.PREFERRED_SIZE)
+            			.addGap(6))
+            		.addComponent(channelPane, GroupLayout.DEFAULT_SIZE, 664, Short.MAX_VALUE)
             );
             BotnakContentPaneLayout.setVerticalGroup(
-                    BotnakContentPaneLayout.createParallelGroup()
-                            .addGroup(BotnakContentPaneLayout.createSequentialGroup()
-                                    .addComponent(channelPane, GroupLayout.PREFERRED_SIZE, 393, GroupLayout.PREFERRED_SIZE)
-                                    .addPreferredGap(LayoutStyle.ComponentPlacement.RELATED)
-                                    .addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 44, GroupLayout.PREFERRED_SIZE)
-                                    .addContainerGap())
+            	BotnakContentPaneLayout.createParallelGroup(Alignment.LEADING)
+            		.addGroup(BotnakContentPaneLayout.createSequentialGroup()
+            			.addComponent(channelPane, GroupLayout.PREFERRED_SIZE, 393, GroupLayout.PREFERRED_SIZE)
+            			.addPreferredGap(ComponentPlacement.UNRELATED)
+            			.addGroup(BotnakContentPaneLayout.createParallelGroup(Alignment.TRAILING)
+            				.addGroup(BotnakContentPaneLayout.createSequentialGroup()
+            					.addComponent(emoteButton)
+            					.addGap(32))
+            				.addGroup(BotnakContentPaneLayout.createSequentialGroup()
+            					.addComponent(scrollPane1, GroupLayout.PREFERRED_SIZE, 51, GroupLayout.PREFERRED_SIZE)
+            					.addContainerGap())
+            				.addGap(25)))
             );
+            BotnakContentPane.setLayout(BotnakContentPaneLayout);
             addComponentListener(new ComponentAdapter() {
                 @Override
                 public void componentResized(ComponentEvent e) {
@@ -771,6 +959,29 @@ public class GUIMain extends JFrame {
         // JFormDesigner - End of component initialization  //GEN-END:initComponents
     }
 
+    private void setChatButtonIcon() {
+    	Thread runner = new Thread(new Runnable(){
+    	     public void run() {
+    	    	 try{
+    	     		while (!(FaceManager.doneWithTwitchFaces && FaceManager.doneWithFrankerFaces)){
+    	     			try{
+    	     				Thread.sleep(1000);
+    	     			} catch (InterruptedException e) {
+    	     				GUIMain.log(e);
+    	     			}
+    	     		}
+    	     		//emoteButton.setIcon(Icons.sizeIcon(new File(FaceManager.twitchFaceMap.get(1).getFilePath()).toURI().toURL()));
+    	     		emoteButton.setText("");
+    	     		
+    	     	} catch (Exception e){//MalformedURLException e) {
+    	     		GUIMain.log(e);
+    	     	}
+    	    	 emoteButton.setEnabled(true);
+    	     }
+    	});  
+    	runner.start();
+    }
+    
     // JFormDesigner - Variables declaration - DO NOT MODIFY  //GEN-BEGIN:variables
     // Generated using JFormDesigner Evaluation license - Nick K
     private JMenuBar menuBar1;
@@ -785,7 +996,10 @@ public class GUIMain extends JFrame {
     private JRadioButtonMenuItem radioButtonMenuItem3;
     private JRadioButtonMenuItem radioButtonMenuItem2;
     private JCheckBoxMenuItem autoReconnectToggle;
+    private JCheckBoxMenuItem ffzEmotesToggle;
+    private JCheckBoxMenuItem subEmotesToggle;
     private JCheckBoxMenuItem alwaysOnTopToggle;
+    private JCheckBoxMenuItem whisperModeToggle;
     private JMenuItem settingsOption;
     private JMenu toolsMenu;
     private JMenuItem startRaffleOption;
@@ -829,5 +1043,6 @@ public class GUIMain extends JFrame {
     private JTextPane allChats;
     private JLabel dankLabel;
     private JScrollPane scrollPane1;
+    private JButton emoteButton;
     public static JTextArea userChat;
 }

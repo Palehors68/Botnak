@@ -3,6 +3,7 @@ package util.settings;
 import face.*;
 import gui.ChatPane;
 import gui.CombinedChatPane;
+import gui.GUIEmotes;
 import gui.GUIMain;
 import irc.Donor;
 import irc.Subscriber;
@@ -11,6 +12,7 @@ import irc.account.AccountManager;
 import irc.account.Oauth;
 import irc.account.Task;
 import lib.pircbot.org.jibble.pircbot.ChannelManager;
+import lib.pircbot.org.jibble.pircbot.Channel;
 import sound.Sound;
 import sound.SoundEngine;
 import thread.ThreadEngine;
@@ -22,6 +24,7 @@ import util.misc.Donation;
 
 import javax.swing.filechooser.FileSystemView;
 import javax.swing.text.StyleConstants;
+
 import java.awt.*;
 import java.io.*;
 import java.net.URL;
@@ -29,6 +32,7 @@ import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Collectors;
 
 /**
@@ -45,8 +49,10 @@ public class Settings {
     public AccountManager accountManager = null;
     public ChannelManager channelManager = null;
     public String lastFMAccount = "";
-    public int botReplyType = 0;
-    //0 = none, 1 = botnak user only, 2 = everyone
+    public int botReplyType = 0; //0 = none, 1 = botnak user only, 2 = everyone
+    public boolean botWhisperMode = false;
+    public boolean ffzEmotes = false, subEmotes = false, soundsEnabled = false, autoReconnectAccounts = true;
+    
 
     //donations
     public DonationManager donationManager = null;
@@ -64,17 +70,25 @@ public class Settings {
     public URL adminIcon;
     public URL staffIcon;
     public URL turboIcon;
+    public URL primeIcon;
     public boolean useMod = false;//"should use a custom mod icon"
     public boolean useBroad = false;
     public boolean useAdmin = false;
     public boolean useStaff = false;
 
+    //API Keys
+    public String youTubeKey = "";
+    public String twitterKey = "";
+    public String twitterSecret = "";
+    public String unshortenitKey = "";
+    public String twitchClientID = "";
+    
     //font
     public Font font;
 
     //directories
     public static File defaultDir = new File(FileSystemView.getFileSystemView().getDefaultDirectory().getAbsolutePath()
-            + File.separator + "Botnak");
+            + File.separator + "Palehorsbot");
     public File faceDir = new File(defaultDir + File.separator + "Faces");
     public File nameFaceDir = new File(defaultDir + File.separator + "NameFaces");
     public File twitchFaceDir = new File(defaultDir + File.separator + "TwitchFaces");
@@ -85,6 +99,7 @@ public class Settings {
     public File logDir = new File(defaultDir + File.separator + "Logs");
     //files
     public File accountsFile = new File(defaultDir + File.separator + "acc.ini");
+    public File APIKeysFile = new File(defaultDir + File.separator + "APIKeys.ini");
     public File tabsFile = new File(defaultDir + File.separator + "tabs.txt");
     public File soundsFile = new File(defaultDir + File.separator + "sounds.txt");
     public File faceFile = new File(defaultDir + File.separator + "faces.txt");
@@ -100,6 +115,7 @@ public class Settings {
     public File donatorsFile = new File(defaultDir + File.separator + "donators.txt");
     public File donationsFile = new File(defaultDir + File.separator + "donations.txt");
     public File subsFile = new File(defaultDir + File.separator + "subs.txt");
+    public File quotesFile = new File(defaultDir + File.separator + "quotes.txt");
 
     //appearance
     public boolean logChat = false;
@@ -111,6 +127,7 @@ public class Settings {
 
     public String date;
     public float soundVolumeGain = 100;
+    public String welcomeMessage = "";
 
     public Settings() {//default account
         modIcon = Settings.class.getResource("/image/mod.png");
@@ -118,6 +135,7 @@ public class Settings {
         adminIcon = Settings.class.getResource("/image/admin.png");
         staffIcon = Settings.class.getResource("/image/staff.png");
         turboIcon = Settings.class.getResource("/image/turbo.png");
+        primeIcon = Settings.class.getResource("/image/prime.png");
         long time = System.currentTimeMillis();
         SimpleDateFormat sdf = new SimpleDateFormat("dd-MM-yy");
         date = sdf.format(new Date(time));
@@ -153,6 +171,10 @@ public class Settings {
                 GUIMain.log("Loading defaults...");
                 loadPropData(1);
             }
+            if (Utils.areFilesGood(APIKeysFile.getAbsolutePath())){
+            	GUIMain.log("Loading API Keys...");
+            	loadPropData(2);
+            }
             if (Utils.areFilesGood(tabsFile.getAbsolutePath()) && accountManager.getUserAccount() != null) {
                 GUIMain.log("Loading tabs...");
                 loadTabState();
@@ -168,6 +190,11 @@ public class Settings {
             if (donationSoundDir.exists() && donationSoundDir.list().length > 0) {
                 GUIMain.log("Loading donation sounds...");
                 doLoadDonationSounds();
+                loadDonationSounds();
+            }
+            if (Utils.areFilesGood(quotesFile.getAbsolutePath())) {
+            	GUIMain.log("Loading quotes...");
+            	loadQuotes();
             }
             if (Utils.areFilesGood(userColFile.getAbsolutePath())) {
                 GUIMain.log("Loading user colors...");
@@ -197,7 +224,8 @@ public class Settings {
             }
             if (Utils.areFilesGood(commandsFile.getAbsolutePath())) {
                 GUIMain.log("Loading text commands...");
-                loadCommands();
+//                loadCommands();
+                GUIMain.commandSet = Utils.loadCommands(commandsFile);
             }
             if (Utils.areFilesGood(subIconsFile.getAbsolutePath())) {
                 GUIMain.log("Loading subscriber icons...");
@@ -237,19 +265,33 @@ public class Settings {
         saveWindow();
         if (accountManager.getUserAccount() != null || accountManager.getBotAccount() != null) savePropData(0);
         savePropData(1);
+        savePropData(2);
         if (!SoundEngine.getEngine().getSoundMap().isEmpty()) saveSounds();
         if (!FaceManager.faceMap.isEmpty()) saveFaces();
         if (!FaceManager.twitchFaceMap.isEmpty()) saveTwitchFaces();
         saveTabState();
         if (!GUIMain.userColMap.isEmpty()) saveUserColors();
-        if (GUIMain.loadedCommands()) saveCommands();
+        if (GUIMain.loadedCommands()) Utils.saveCommands(commandsFile, GUIMain.commandSet);
         if (!GUIMain.keywordMap.isEmpty()) saveKeywords();
         if (!FaceManager.subIconSet.isEmpty()) saveSubIcons();
         if (!donationManager.getDonors().isEmpty()) saveDonors();
         if (!donationManager.getDonations().isEmpty()) saveDonations();
         if (!subscriberManager.getSubscribers().isEmpty()) saveSubscribers();
-        saveConCommands();
+        Utils.saveConCommands(ccommandsFile, GUIMain.conCommands);
     }
+    
+//    public void save(String channel){
+//    	Channel ch = channelManager.getChannel(channel);
+//    	if (ch == null) return;
+//    	channel = channel.startsWith("#") ? channel.substring(1).toLowerCase() : channel.toLowerCase();
+//    	File chanDir = new File(defaultDir + File.separator + "Channels" + File.separator + channel);
+////    	chanDir.mkdirs();
+//    	
+//    	//Commands
+//    	String oldCommFile = commandsFile.getAbsolutePath();
+//    	commandsFile = new File(chanDir + File.separator + "commands.txt");
+////    	if (ch.g)
+//    }
 
     /**
      * *********VOIDS*************
@@ -297,6 +339,7 @@ public class Settings {
                 defaultFaceDir = p.getProperty("FaceDir", "");
                 defaultSoundDir = p.getProperty("SoundDir", "");
                 useMod = Boolean.parseBoolean(p.getProperty("UseMod", "false"));
+                welcomeMessage = p.getProperty("WelcomeMessage");
                 try {
                     modIcon = new URL(p.getProperty("CustomMod", modIcon.toString()));
                 } catch (Exception e) {
@@ -330,8 +373,27 @@ public class Settings {
                 SoundEngine.getEngine().setPermission(Integer.parseInt(p.getProperty("SoundEnginePerm", "1")));
                 SoundEngine.getEngine().setDelay(Integer.parseInt(p.getProperty("SoundEngineDelay", "10000")));
                 botReplyType = Integer.parseInt(p.getProperty("BotReplyType", "0"));
+                botWhisperMode = Boolean.parseBoolean(p.getProperty("BotWhisperMode", "false"));
+                GUIMain.instance.setBotReplyRadioButton();
+                subEmotes = Boolean.parseBoolean(p.getProperty("subEmotesToggle", "false"));
+                ffzEmotes = Boolean.parseBoolean(p.getProperty("ffzEmotesToggle", "false"));
+                GUIMain.instance.setEmoteSwitches();
                 GUIMain.log("Loaded defaults!");
             } catch (Exception e) {
+                GUIMain.log(e);
+            }
+        }
+        if (type == 2){//APIKeys
+        	try {
+                p.load(new FileInputStream(APIKeysFile));
+                
+                unshortenitKey = p.getProperty("unshortenitAPIKey","");
+                youTubeKey = p.getProperty("youTubeAPIKey","");
+                twitterKey = p.getProperty("twitterAPIKey","");
+                twitterSecret = p.getProperty("twitterAPISecret");
+                twitchClientID = p.getProperty("twitchClientID");
+                GUIMain.log("Loaded API Keys!");
+        	} catch (Exception e) {
                 GUIMain.log(e);
             }
         }
@@ -387,15 +449,58 @@ public class Settings {
             p.put("SoundEnginePerm", String.valueOf(SoundEngine.getEngine().getPermission()));
             p.put("SoundEngineDelay", String.valueOf(SoundEngine.getEngine().getDelay()));
             p.put("BotReplyType", String.valueOf(botReplyType));
+            p.put("BotWhisperMode", String.valueOf(botWhisperMode));
+            p.put("ffzEmotesToggle", String.valueOf(GUIEmotes.getFfzEmoteToggle()));
+            p.put("subEmotesToggle", String.valueOf(GUIEmotes.getSubEmoteToggle()));
+            p.put("WelcomeMessage", welcomeMessage);
             try {
                 p.store(new FileWriter(defaultsFile), "Default Settings");
             } catch (IOException e) {
                 GUIMain.log(e);
             }
         }
+        if (type == 2){//APIKey data
+        	p.put("unshortenitAPIKey", unshortenitKey);
+        	p.put("youTubeAPIKey", youTubeKey);
+        	p.put("twitterAPIKey", twitterKey);
+        	p.put("twitterAPISecret", twitterSecret);
+        	p.put("twitchClientID", twitchClientID);
+        	try{
+        		p.store(new FileWriter(APIKeysFile), "API Keys");
+        		
+        	} catch (IOException e){
+        		GUIMain.log(e);
+        	}
+        }
     }
 
-
+    /**
+     * Quotes
+     */
+    public void loadQuotes() {
+    	try (BufferedReader br = new BufferedReader(new InputStreamReader(quotesFile.toURI().toURL().openStream()))) {
+    		String line;
+    		while ((line = br.readLine()) != null) {
+    			GUIMain.quotes.add(line);
+    		}
+    		GUIMain.log("Loaded quotes!");
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
+    
+    public void saveQuotes() {
+    	try (PrintWriter br = new PrintWriter(quotesFile)) {
+                for (String next : GUIMain.quotes) {
+                    if (next != null) {
+                        br.print(next);
+                        br.println();
+                    }
+                }
+    	} catch (Exception e) {
+    		GUIMain.log(e.getMessage());
+    	}
+    }
     /**
      * Sounds
      */
@@ -559,7 +664,7 @@ public class Settings {
             FaceManager.twitchFaceMap.keySet().stream().filter(s -> s != null && FaceManager.twitchFaceMap.get(s) != null)
                     .forEach(s -> {
                         TwitchFace fa = FaceManager.twitchFaceMap.get(s);
-                        br.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()));
+                        br.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()) + "," + fa.getEmoticonSet());
                     });
         } catch (Exception e) {
             GUIMain.log(e);
@@ -578,7 +683,8 @@ public class Settings {
                     int emoteID = Integer.parseInt(split[0]);
                     TwitchFace tf = new TwitchFace(split[1],
                             new File(twitchFaceDir + File.separator + String.valueOf(emoteID) + ".png").getAbsolutePath(),
-                            Boolean.parseBoolean(split[2]));
+                            Boolean.parseBoolean(split[2]),
+                            Integer.parseInt(split[3]));
                     FaceManager.twitchFaceMap.put(emoteID, tf);
                 } catch (Exception e) {
                     GUIMain.log(e);
@@ -617,146 +723,76 @@ public class Settings {
     }
 
 
-    /**
-     * Commands
-     * <p/>
-     * trigger[message (content)[arguments?
-     */
-    public void loadCommands() {
-        try (BufferedReader br = new BufferedReader(new InputStreamReader(commandsFile.toURI().toURL().openStream()))) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                String[] split = line.split("\\[");
-                String[] contents = split[1].split("\\]");
-                Command c = new Command(split[0], contents);
-                if (split.length > 2) {
-                    c.addArguments(split[2].split(","));
-                }
-                GUIMain.commandSet.add(c);
-            }
-            GUIMain.log("Loaded text commands!");
-        } catch (Exception e) {
-            GUIMain.log(e);
-        }
-    }
-
-    public void saveCommands() {
-        try (PrintWriter br = new PrintWriter(commandsFile)) {
-            for (Command next : GUIMain.commandSet) {
-                if (next != null) {
-                    String name = next.getTrigger();
-                    String[] contents = next.getMessage().data;
-                    StringBuilder sb = new StringBuilder();
-                    for (int i = 0; i < contents.length; i++) {
-                        sb.append(contents[i]);
-                        if (i != (contents.length - 1)) sb.append("]");
-                    }
-                    br.print(name + "[" + sb.toString());
-                    if (next.hasArguments()) {
-                        br.print("[");
-                        for (int i = 0; i < next.countArguments(); i++) {
-                            br.print(next.getArguments().get(i));
-                            if (i != (next.countArguments() - 1)) br.print(",");
-                        }
-                    }
-                    br.println();
-                }
-            }
-        } catch (Exception e) {
-            GUIMain.log(e);
-        }
-    }
-
-    /**
-     * Console Commands
-     */
-    public void saveConCommands() {
-        try (PrintWriter br = new PrintWriter(ccommandsFile)) {
-            for (ConsoleCommand next : GUIMain.conCommands) {
-                if (next != null) {
-                    String name = next.getTrigger();
-                    String action = next.getAction().toString();
-                    int classPerm = next.getClassPermission();
-                    String certainPerm = "null";
-                    if (next.getCertainPermissions() != null) {
-                        StringBuilder sb = new StringBuilder();
-                        for (int i = 0; i < next.getCertainPermissions().length; i++) {
-                            sb.append(next.getCertainPermissions()[i]);
-                            if (i != (next.getCertainPermissions().length - 1)) sb.append(",");
-                        }
-                        certainPerm = sb.toString();
-                    }
-                    br.println(name + "[" + action + "[" + classPerm + "[" + certainPerm);
-                }
-            }
-        } catch (Exception e) {
-            GUIMain.log(e);
-        }
-    }
-
-    ConsoleCommand.Action getAction(String key) {
-        ConsoleCommand.Action act = null;
-        for (ConsoleCommand.Action a : ConsoleCommand.Action.values()) {
-            if (a.toString().equalsIgnoreCase(key)) {
-                act = a;
-                break;
-            }
-        }
-        return act;
-    }
 
     public void loadConsoleCommands() {
         HashSet<ConsoleCommand> hardcoded = new HashSet<>();
-        hardcoded.add(new ConsoleCommand("addface", ConsoleCommand.Action.ADD_FACE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("changeface", ConsoleCommand.Action.CHANGE_FACE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("removeface", ConsoleCommand.Action.REMOVE_FACE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("toggleface", ConsoleCommand.Action.TOGGLE_FACE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("addsound", ConsoleCommand.Action.ADD_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("changesound", ConsoleCommand.Action.CHANGE_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("removesound", ConsoleCommand.Action.REMOVE_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("setsound", ConsoleCommand.Action.SET_SOUND_DELAY, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("togglesound", ConsoleCommand.Action.TOGGLE_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("stopsound", ConsoleCommand.Action.STOP_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("stopallsounds", ConsoleCommand.Action.STOP_ALL_SOUNDS, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("addkeyword", ConsoleCommand.Action.ADD_KEYWORD, Constants.PERMISSION_DEV, null));
-        hardcoded.add(new ConsoleCommand("removekeyword", ConsoleCommand.Action.REMOVE_KEYWORD, Constants.PERMISSION_DEV, null));
-        hardcoded.add(new ConsoleCommand("setcol", ConsoleCommand.Action.SET_USER_COL, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("setpermission", ConsoleCommand.Action.SET_COMMAND_PERMISSION, Constants.PERMISSION_DEV, null));
-        hardcoded.add(new ConsoleCommand("addcommand", ConsoleCommand.Action.ADD_TEXT_COMMAND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("removecommand", ConsoleCommand.Action.REMOVE_TEXT_COMMAND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("addcmd", ConsoleCommand.Action.ADD_TEXT_COMMAND, Constants.PERMISSION_MOD, null));
         hardcoded.add(new ConsoleCommand("adddonation", ConsoleCommand.Action.ADD_DONATION, Constants.PERMISSION_DEV, null));
-        hardcoded.add(new ConsoleCommand("setsubsound", ConsoleCommand.Action.SET_SUB_SOUND, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("setsoundperm", ConsoleCommand.Action.SET_SOUND_PERMISSION, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("setnameface", ConsoleCommand.Action.SET_NAME_FACE, Constants.PERMISSION_SUB, null));
-        hardcoded.add(new ConsoleCommand("removenameface", ConsoleCommand.Action.REMOVE_NAME_FACE, Constants.PERMISSION_SUB, null));
-        hardcoded.add(new ConsoleCommand("playad", ConsoleCommand.Action.PLAY_ADVERT, Constants.PERMISSION_DEV, null));
-        hardcoded.add(new ConsoleCommand("settitle", ConsoleCommand.Action.SET_STREAM_TITLE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("title", ConsoleCommand.Action.SEE_STREAM_TITLE, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("setgame", ConsoleCommand.Action.SET_STREAM_GAME, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("game", ConsoleCommand.Action.SEE_STREAM_GAME, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("startraffle", ConsoleCommand.Action.START_RAFFLE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("addface", ConsoleCommand.Action.ADD_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("addkeyword", ConsoleCommand.Action.ADD_KEYWORD, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("addquote", ConsoleCommand.Action.ADD_QUOTE, Constants.PERMISSION_MOD,null));
         hardcoded.add(new ConsoleCommand("addrafflewinner", ConsoleCommand.Action.ADD_RAFFLE_WINNER, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("stopraffle", ConsoleCommand.Action.STOP_RAFFLE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("removerafflewinner", ConsoleCommand.Action.REMOVE_RAFFLE_WINNER, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("winners", ConsoleCommand.Action.SEE_WINNERS, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("startpoll", ConsoleCommand.Action.START_POLL, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("vote", ConsoleCommand.Action.VOTE_POLL, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("pollresult", ConsoleCommand.Action.POLL_RESULT, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("cancelpoll", ConsoleCommand.Action.CANCEL_POLL, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("song", ConsoleCommand.Action.NOW_PLAYING, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("soundstate", ConsoleCommand.Action.SEE_SOUND_STATE, Constants.PERMISSION_MOD, null));
-        hardcoded.add(new ConsoleCommand("uptime", ConsoleCommand.Action.SHOW_UPTIME, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("lastsubsound", ConsoleCommand.Action.SEE_PREV_SOUND_SUB, Constants.PERMISSION_ALL, null));
-        hardcoded.add(new ConsoleCommand("lastdonationsound", ConsoleCommand.Action.SEE_PREV_SOUND_DON, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("addsound", ConsoleCommand.Action.ADD_SOUND, Constants.PERMISSION_MOD, null));
         hardcoded.add(new ConsoleCommand("botreply", ConsoleCommand.Action.SEE_OR_SET_REPLY_TYPE, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("cancelpoll", ConsoleCommand.Action.CANCEL_POLL, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("cat", ConsoleCommand.Action.CAT, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("changeface", ConsoleCommand.Action.CHANGE_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("changesound", ConsoleCommand.Action.CHANGE_SOUND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("damperace", ConsoleCommand.Action.DAMPE_RACE, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("delcmd", ConsoleCommand.Action.REMOVE_TEXT_COMMAND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("editcmd", ConsoleCommand.Action.ADD_TEXT_COMMAND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("game", ConsoleCommand.Action.SEE_STREAM_GAME, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("help", ConsoleCommand.Action.HELP, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("host", ConsoleCommand.Action.HOST_USER, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("judgerace", ConsoleCommand.Action.JUDGE_RACE, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("lastdonationsound", ConsoleCommand.Action.SEE_PREV_SOUND_DON, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("lastsubsound", ConsoleCommand.Action.SEE_PREV_SOUND_SUB, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("play", ConsoleCommand.Action.SET_GAME, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("playad", ConsoleCommand.Action.PLAY_ADVERT, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("playnothing", ConsoleCommand.Action.CLEAR_GAME, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("pollresult", ConsoleCommand.Action.POLL_RESULT, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("quote", ConsoleCommand.Action.GET_QUOTE, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("removeallquotes", ConsoleCommand.Action.REMOVE_ALL_QUOTES, Constants.PERMISSION_MOD,null));
+        hardcoded.add(new ConsoleCommand("removeface", ConsoleCommand.Action.REMOVE_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("removekeyword", ConsoleCommand.Action.REMOVE_KEYWORD, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("removenameface", ConsoleCommand.Action.REMOVE_NAME_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("removequote", ConsoleCommand.Action.REMOVE_QUOTE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("removerafflewinner", ConsoleCommand.Action.REMOVE_RAFFLE_WINNER, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("removesound", ConsoleCommand.Action.REMOVE_SOUND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("setcol", ConsoleCommand.Action.SET_USER_COL, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("setgame", ConsoleCommand.Action.SET_STREAM_GAME, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("setnameface", ConsoleCommand.Action.SET_NAME_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("setpermission", ConsoleCommand.Action.SET_COMMAND_PERMISSION, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("setsound", ConsoleCommand.Action.SET_SOUND_DELAY, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("setsoundperm", ConsoleCommand.Action.SET_SOUND_PERMISSION, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("setsubsound", ConsoleCommand.Action.SET_SUB_SOUND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("settitle", ConsoleCommand.Action.SET_STREAM_TITLE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("song", ConsoleCommand.Action.NOW_PLAYING, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("soundstate", ConsoleCommand.Action.SEE_SOUND_STATE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("startpoll", ConsoleCommand.Action.START_POLL, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("startraffle", ConsoleCommand.Action.START_RAFFLE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("stopallsounds", ConsoleCommand.Action.STOP_ALL_SOUNDS, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("stopraffle", ConsoleCommand.Action.STOP_RAFFLE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("stopsound", ConsoleCommand.Action.STOP_SOUND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("talk", ConsoleCommand.Action.TALK, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("throttle", ConsoleCommand.Action.THROTTLE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("throttlebot", ConsoleCommand.Action.THROTTLEBOT, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("title", ConsoleCommand.Action.SEE_STREAM_TITLE, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("toggleface", ConsoleCommand.Action.TOGGLE_FACE, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("togglesound", ConsoleCommand.Action.TOGGLE_SOUND, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("uptime", ConsoleCommand.Action.SHOW_UPTIME, Constants.PERMISSION_ALL, null));
         hardcoded.add(new ConsoleCommand("volume", ConsoleCommand.Action.SEE_OR_SET_VOLUME, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("vote", ConsoleCommand.Action.VOTE_POLL, Constants.PERMISSION_ALL, null));
+        hardcoded.add(new ConsoleCommand("whisper", ConsoleCommand.Action.WHISPER, Constants.PERMISSION_DEV, null));
+        hardcoded.add(new ConsoleCommand("winners", ConsoleCommand.Action.SEE_WINNERS, Constants.PERMISSION_MOD, null));
+        hardcoded.add(new ConsoleCommand("wr", ConsoleCommand.Action.WR, Constants.PERMISSION_ALL, null, "!wr returns the Any% WR of the current game. !wr <game> / <category> searches for the game/category"));
 
         if (Utils.areFilesGood(ccommandsFile.getAbsolutePath())) {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(ccommandsFile.toURI().toURL().openStream()))) {
                 String line;
                 while ((line = br.readLine()) != null) {
                     String[] split = line.split("\\[");
-                    ConsoleCommand.Action a = getAction(split[1]);
+                    ConsoleCommand.Action a = Utils.getAction(split[1]);
                     int classPerm;
                     try {
                         classPerm = Integer.parseInt(split[2]);
@@ -767,7 +803,9 @@ public class Settings {
                     if (!split[3].equalsIgnoreCase("null")) {
                         customUsers = split[3].split(",");
                     }
-                    GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers));
+                    String helpText = "";
+                    if (split.length == 5) helpText = split[4];
+                    GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers, helpText));
                 }
                 if (GUIMain.conCommands.size() != hardcoded.size()) { //something's not right...
                     for (ConsoleCommand hard : hardcoded) {
@@ -849,7 +887,7 @@ public class Settings {
      */
     public void saveSubIcons() {
         try (PrintWriter br = new PrintWriter(subIconsFile)) {
-            FaceManager.subIconSet.stream().forEach(i -> br.println(i.getChannel() + "," + i.getFileLoc()));
+            FaceManager.subIconSet.stream().forEach(i -> br.println(i.getChannel() + "," + i.getLength() + "," + i.getFileLoc()));
         } catch (Exception e) {
             GUIMain.log(e);
         }
@@ -860,7 +898,7 @@ public class Settings {
             String line;
             while ((line = br.readLine()) != null) {
                 String[] split = line.split(",");
-                FaceManager.subIconSet.add(new SubscriberIcon(split[0], split[1]));
+                FaceManager.subIconSet.add(new SubscriberIcon(split[0], split[2], Integer.parseInt(split[1])));
             }
             GUIMain.log("Loaded subscriber icons!");
         } catch (Exception e) {
@@ -907,7 +945,7 @@ public class Settings {
     public void saveDonations() {
         try (PrintWriter br = new PrintWriter(donationsFile)) {
             donationManager.getDonations().stream().sorted().forEach(d ->
-                    br.println(d.getDonationID() + "[" + d.getFromWho() + "[" + d.getNote() + "["
+                    br.println(d.getDonationID() + "[" + d.getFromWhom() + "[" + d.getNote() + "["
                             + d.getAmount() + "[" + Instant.ofEpochMilli(d.getDateReceived().getTime()).toString()));
         } catch (Exception e) {
             GUIMain.log(e);
@@ -936,7 +974,7 @@ public class Settings {
             }
             if (mostRecent != null) {
                 donationManager.setLastDonation(mostRecent);
-                GUIMain.log(String.format("Most recent donation: %s for %s", mostRecent.getFromWho(),
+                GUIMain.log(String.format("Most recent donation: %s for %s", mostRecent.getFromWhom(),
                         DonationManager.getCurrencyFormat().format(mostRecent.getAmount())));
             }
             if (!donations.isEmpty()) {
@@ -1009,6 +1047,7 @@ public class Settings {
      * Single tabs can be invisible if they are in a combined tab.
      */
     public void saveTabState() {
+    	if (GUIMain._debug) return;
         try (PrintWriter br = new PrintWriter(tabsFile)) {
             int currentSelectedIndex = GUIMain.channelPane.getSelectedIndex();
             for (int i = 1; i < GUIMain.channelPane.getTabCount() - 1; i++) {
@@ -1041,6 +1080,14 @@ public class Settings {
     }
 
     public void loadTabState() {
+    	if (GUIMain._debug){
+    		ChatPane cp = ChatPane.createPane("palehors68");
+    		GUIMain.channelSet.add("#palehors68");
+    		GUIMain.chatPanes.put(cp.getChannel(), cp);
+            GUIMain.channelPane.insertTab(cp.getChannel(), null, cp.getScrollPane(), null, cp.getIndex());
+            GUIMain.channelPane.setSelectedIndex(1);
+    		
+    	} else {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(tabsFile.toURI().toURL().openStream()))) {
             String line;
             int index = 0;
@@ -1083,11 +1130,15 @@ public class Settings {
                     GUIMain.combinedChatPanes.add(ccp);
                 }
             }
+        
             GUIMain.channelPane.setSelectedIndex(index);
             GUIMain.log("Loaded tabs!");
+            GUIMain.channelSet.forEach(GUIMain.viewer::doConnect);
+            GUIMain.channelSet.forEach(GUIMain.bot::doConnect);
         } catch (Exception e) {
             GUIMain.log(e);
         }
+    	}
     }
 
 

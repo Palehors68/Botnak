@@ -47,6 +47,9 @@ public class Icons {
             case TURBO:
                 icon = sizeIcon(GUIMain.currentSettings.turboIcon);
                 break;
+            case PRIME:
+            	icon = sizeIcon(GUIMain.currentSettings.primeIcon);
+            	break;
             case SUBSCRIBER:
                 URL subIcon = FaceManager.getSubIcon(channel);
                 if (subIcon != null) {
@@ -87,7 +90,7 @@ public class Icons {
      * @return ImageIcon the resized image
      */
 
-    private static ImageIcon sizeIcon(URL image) {
+    public static ImageIcon sizeIcon(URL image) {
         ImageIcon icon;
         try {
             BufferedImage img = ImageIO.read(image);

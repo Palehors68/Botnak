@@ -35,6 +35,7 @@ public class AuthorizeAccountGUI extends JFrame {
             if (boxCommercial.isSelected()) URL += "+channel_commercial";
             if (boxEditStream.isSelected()) URL += "+channel_editor";
             if (boxFollowed.isSelected()) URL += "+user_follows_edit";
+            URL += "+user_subscriptions";
             Utils.openWebPage(URL);
             TokenListener tl = new TokenListener(this);
             tl.start();

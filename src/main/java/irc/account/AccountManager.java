@@ -4,11 +4,14 @@ import gui.GUIMain;
 import irc.IRCBot;
 import irc.IRCViewer;
 import lib.pircbot.org.jibble.pircbot.PircBot;
+import lib.pircbot.org.jibble.pircbot.PircBotConnection;
 import lib.pircbot.org.jibble.pircbot.Queue;
-import util.Timer;
+import java.util.Timer;
+import util.settings.Settings;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.TimerTask;
 
 /**
  * Created by Nick on 6/12/2014.
@@ -49,17 +52,19 @@ public class AccountManager extends Thread {
     }
 
     public synchronized void addTask(Task t) {
-        if (t.type == Task.Type.CONNECT || t.type == Task.Type.JOIN_CHANNEL || t.type == Task.Type.LEAVE_CHANNEL) {
-            if (t.doer != null) {
-                ReconnectThread rt = reconnectThreads.get(t.doer.getNick());
-                if (rt != null) {
-                    if (t.type != Task.Type.CONNECT) {//since the reconnect thread already handles this...
-                        rt.addTask(t);
-                    }
-                    return;
-                }
-            }
-        }
+    	if (reconnectThreads != null) {
+	        if (t.type == Task.Type.CONNECT || t.type == Task.Type.JOIN_CHANNEL || t.type == Task.Type.LEAVE_CHANNEL) {
+	            if (t.doer != null && t.doer.getConnection() != null && t.doer.getConnection().getName() != null) {
+	                ReconnectThread rt = reconnectThreads.get(t.doer.getConnection().getName());
+	                if (rt != null) {
+	                    if (t.type != Task.Type.CONNECT) {//since the reconnect thread already handles this...
+	                        rt.addTask(t);
+	                    }
+	                    return;
+	                }
+	            }
+	        }
+    	}
         tasks.add(t);
     }
 
@@ -87,8 +92,9 @@ public class AccountManager extends Thread {
                 switch (t.type) {
                     case CREATE_BOT_ACCOUNT:
                         GUIMain.bot = new IRCBot();
-                        PircBot bot = new PircBot(GUIMain.bot);
-                        bot.setNick(getBotAccount().getName());
+                        PircBot bot = new PircBot(GUIMain.bot, getBotAccount().getName());
+                        bot.setVerbose(true);
+//                        bot.setNick(getBotAccount().getName());
                         bot.setPassword(getBotAccount().getKey().getKey());
                         bot.setMessageDelay(1500);
                         setBot(bot);
@@ -96,20 +102,23 @@ public class AccountManager extends Thread {
                         break;
                     case CREATE_VIEWER_ACCOUNT:
                         GUIMain.viewer = new IRCViewer();
-                        PircBot viewer = new PircBot(GUIMain.viewer);
-                        viewer.setVerbose(true);//TODO remove this
-                        viewer.setNick(getUserAccount().getName());
+                        PircBot viewer = new PircBot(GUIMain.viewer, getUserAccount().getName());
+                        viewer.setVerbose(true);
+//                        viewer.setNick(getUserAccount().getName());
                         viewer.setPassword(getUserAccount().getKey().getKey());
+                        viewer.setMessageDelay(1500);
                         setViewer(viewer);
                         addTask(new Task(getViewer(), Task.Type.CONNECT, "Loaded User: " + getUserAccount().getName() + "!"));
                         break;
                     case DISCONNECT:
                         if (t.doer != null) {
-                            ReconnectThread potential = reconnectThreads.get(t.doer.getNick());
-                            if (potential != null) {
-                                potential.interrupt();
-                                reconnectThreads.remove(t.doer.getNick());
-                            }
+                        	if (t.doer.getConnection() != null){
+	                            ReconnectThread potential = reconnectThreads.get(t.doer.getConnection().getName());
+	                            if (potential != null) {
+	                                potential.t.cancel();
+	                                reconnectThreads.remove(t.doer.getNick());
+	                            }
+                        	}
                             t.doer.disconnect();
                             t.doer.dispose();
                         }
@@ -121,17 +130,17 @@ public class AccountManager extends Thread {
                                 if (!channel.startsWith("#")) channel = "#" + channel;
                                 t.doer.joinChannel(channel);
                             } else {
-                                createReconnectThread(t.doer);
+                                createReconnectThread(t.doer.getConnection());
                                 addTask(t);//loops back around, adds to the reconnect thread
                             }
                         }
                         break;
                     case CONNECT:
-                        if (t.doer.connect("irc.twitch.tv", 6667)) {
+                    	if (t.doer.connect()){
                             GUIMain.log(t.message);
                         } else {
                             if (!t.doer.isConnected()) {
-                                createReconnectThread(t.doer);
+                                createReconnectThread(t.doer.getConnection());
                             }
                         }
                         break;
@@ -142,7 +151,7 @@ public class AccountManager extends Thread {
                                 if (!chaan.startsWith("#")) chaan = "#" + chaan;
                                 t.doer.partChannel(chaan);
                             } else {
-                                createReconnectThread(t.doer);
+                                createReconnectThread(t.doer.getConnection());
                                 addTask(t);//loops back around, adds to the reconnect thread
                             }
                         }
@@ -154,15 +163,52 @@ public class AccountManager extends Thread {
         }
     }
 
-    public void createReconnectThread(PircBot b) {
-        if (reconnectThreads.get(b.getNick()) != null) return;
-        ReconnectThread rt = new ReconnectThread(b);
+    public void createReconnectThread(PircBotConnection connection) {
+    	if (!GUIMain.currentSettings.autoReconnectAccounts) {
+    		GUIMain.log("Auto-reconnect is disabled, please check Preferences -> Auto-Reconnect!");
+    		return;
+    	}
+//    	if (reconnectThreads.get(connection.getName()) != null) return;
+    	if (reconnectThreads.containsKey(connection.getName())) return;
+        ReconnectThread rt = new ReconnectThread(connection);
         rt.start();
-        reconnectThreads.put(b.getNick(), rt);
-        GUIMain.logCurrent("Detected a disconnection, attempting to reconnect the account: " + b.getNick() + " !");
-    }
+        reconnectThreads.put(connection.getName(), rt);
+            GUIMain.logCurrent("Attempting to reconnect the account: " + connection.getBot().getNick() + " ...");
+       }
 
-    private class ReconnectThread extends Thread {
+    private class ReconnectThread {
+
+        private PircBotConnection connection;
+        private ArrayList<Task> cachedTasks;
+        private Timer t;
+
+        ReconnectThread(PircBotConnection toReconnect) {
+            connection = toReconnect;
+            cachedTasks = new ArrayList<>();
+            t = new Timer();
+        }
+
+        public void start() {
+            TimerTask task = new TimerTask() {
+                @Override
+                public void run() {
+                    if (connection.connect()) {
+                        reconnectThreads.remove(connection.getName());
+                        cachedTasks.forEach(GUIMain.currentSettings.accountManager::addTask);
+//                        if (!connection.isWhisper())
+                            GUIMain.logCurrent("Successfully reconnected the account: " + connection.getBot().getNick() + " !");
+                        t.cancel();
+                    }
+                }
+            };
+            t.scheduleAtFixedRate(task, 10000L, 10000L);
+        }
+
+        public void addTask(Task t) {
+            cachedTasks.add(t);
+        }
+    }
+    /*private class ReconnectThread extends Thread {
 
         private PircBot doer;
         private ArrayList<Task> cachedTasks;
@@ -205,5 +251,5 @@ public class AccountManager extends Thread {
                 GUIMain.logCurrent("Successfully reconnected the account: " + doer.getNick() + " !");
             }
         }
-    }
+    }*/
 }

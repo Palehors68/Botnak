@@ -28,6 +28,13 @@ public class Message {
         this.type = type;
         this.content = content;
     }
+    
+    public Message(String channel, String content, MessageType type)
+    {
+        this.channel = channel;
+        this.content = content;
+        this.type = type;
+    }
 
     /**
      * Constructs either an Action or Normal chat message.
@@ -99,6 +106,7 @@ public class Message {
         HOSTED_NOTIFY,
         DONATION_NOTIFY,
         JTV_NOTIFY,
+        WHISPER_MESSAGE,
         CLEAR_TEXT
     }
 }

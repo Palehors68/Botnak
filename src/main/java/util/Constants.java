@@ -76,6 +76,7 @@ public class Constants {
     public static final FileFilter pictureFilter = new FileNameExtensionFilter("Image files", ImageIO.getReaderFileSuffixes());
 
     public static final Pattern viewerTwitchPattern = Pattern.compile("\"viewers\":\\s*(\\d+)");
+    public static final Pattern createdAtPattern = Pattern.compile("\"created_at\":\\s*");
     public static final Pattern fileExclPattern = Pattern.compile("[/:\"*?<>|]");
     /**
      * The regex String for finding URLs in messages.
@@ -88,6 +89,8 @@ public class Constants {
      * credit: TDuva
      */
     public static final Matcher urlMatcher = Pattern.compile(urlRegex).matcher("");
+    
+    
 
     //Credit TDuva from his Chatty bot for some of theses, as well as the
     //"namedcolor" class idea.

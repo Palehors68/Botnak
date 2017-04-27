@@ -3,6 +3,7 @@ package gui;
 import face.FaceManager;
 import face.IconEnum;
 import face.Icons;
+import gui.GUIMain;
 import gui.listeners.ListenerFace;
 import gui.listeners.ListenerName;
 import gui.listeners.ListenerURL;
@@ -11,9 +12,11 @@ import irc.message.Message;
 import irc.message.MessageQueue;
 import irc.message.MessageWrapper;
 import lib.pircbot.org.jibble.pircbot.User;
+import lib.pircbot.org.jibble.pircbot.Channel;
 import util.Constants;
 import util.Utils;
 import util.misc.Donation;
+import util.settings.Settings;
 
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
@@ -23,6 +26,7 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import javax.swing.text.html.HTML;
+
 import java.awt.*;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
@@ -97,6 +101,38 @@ public class ChatPane implements DocumentListener {
         if (chan.equalsIgnoreCase("system logs")) return null;
         if (viewerCount == -1) return "Viewer count: Offline";
         return String.format("Viewer count: %d (%d)", viewerCount, viewerPeak);
+    }
+    
+    public void onWhisper(MessageWrapper m) {
+        SimpleAttributeSet senderSet, receiverSet;
+
+        String sender = m.getLocal().getSender();
+        String receiver = (String) m.getLocal().getExtra();
+        print(m, "\n" + getTime(), GUIMain.norm);
+        User senderUser = GUIMain.currentSettings.channelManager.getUser(sender, true);
+        User receiverUser = GUIMain.currentSettings.channelManager.getUser(receiver, true);
+        senderSet = getUserSet(senderUser);
+        receiverSet = getUserSet(receiverUser);
+
+        //name stuff
+        print(m, " ", GUIMain.norm);
+        FaceManager.handleNameFaces(sender, senderSet);
+        FaceManager.handleNameFaces(receiverUser.getNick(), receiverSet);
+        print(m, senderUser.getDisplayName(), senderSet);
+        print(m, " (whisper)-> ", GUIMain.norm);
+        print(m, receiverUser.getDisplayName(), receiverSet);
+        print(m, ": ", GUIMain.norm);
+
+        printMessage(m, m.getLocal().getContent(), GUIMain.norm, senderUser);
+    }
+    
+    private SimpleAttributeSet getUserSet(User u) {
+        SimpleAttributeSet user = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(user, GUIMain.currentSettings.font.getFamily());
+        StyleConstants.setFontSize(user, GUIMain.currentSettings.font.getSize());
+        StyleConstants.setForeground(user, Utils.getColorFromUser(u));
+        user.addAttribute(HTML.Attribute.NAME, u.getDisplayName());
+        return user;
     }
 
     /**
@@ -370,10 +406,15 @@ public class ChatPane implements DocumentListener {
             }
             boolean isSubscriber = u.isSubscriber(channel);
             if (isSubscriber) {
-                insertIcon(m, IconEnum.SUBSCRIBER, channel);
+            	Channel ch = GUIMain.currentSettings.channelManager.getChannel(channel);
+            	int length = ch.isSubscriber(u);
+                insertIcon(m, IconEnum.SUBSCRIBER, channel + "/" + length);
             }
             if (u.isTurbo()) {
                 insertIcon(m, IconEnum.TURBO, null);
+            }
+            if (u.isPrime()) {
+            	insertIcon(m, IconEnum.PRIME, null);
             }
             //name stuff
             print(m, " ", GUIMain.norm);
@@ -422,7 +463,7 @@ public class ChatPane implements DocumentListener {
         HashMap<Integer, SimpleAttributeSet> rangesStyle = new HashMap<>();
 
         findLinks(text, ranges, rangesStyle);
-        findEmoticons(text, ranges, rangesStyle, u, m.getLocal().getChannel().replaceAll("#", ""));
+        findEmoticons(text, ranges, rangesStyle, u, m.getLocal().getChannel());
 
         // Actually print everything
         int lastPrintedPos = 0;
@@ -466,7 +507,10 @@ public class ChatPane implements DocumentListener {
             FaceManager.handleFaces(ranges, rangesStyle, text, FaceManager.FACE_TYPE.TWITCH_FACE, null, u.getEmotes());
         }
         //TODO if (currentSettings.FFZFaceEnabled)
-        FaceManager.handleFaces(ranges, rangesStyle, text, FaceManager.FACE_TYPE.FRANKER_FACE, channel, null);
+        if (GUIMain.currentSettings.ffzEmotes && channel != null) {
+        	channel = channel.replaceAll("#", "");
+        	FaceManager.handleFaces(ranges, rangesStyle, text, FaceManager.FACE_TYPE.FRANKER_FACE, channel, null);
+        }
     }
 
     protected void print(MessageWrapper wrapper, String string, SimpleAttributeSet set) {
@@ -491,6 +535,7 @@ public class ChatPane implements DocumentListener {
         try {
             Message message = m.getLocal();
             print(m, "\n", GUIMain.norm);
+            
             for (int i = 0; i < 5; i++) {
                 insertIcon(m, status, (status == IconEnum.SUBSCRIBER ? message.getChannel() : null));
             }

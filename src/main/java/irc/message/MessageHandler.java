@@ -130,6 +130,24 @@ public abstract class MessageHandler {
      * @param channel The channel (used for getting the pane)
      * @param line    What JTV is trying to tell you.
      */
-    public void onJTVMessage(String channel, String line) {
+    public void onJTVMessage(String channel, String line, String tags) {
+    }
+    
+    /**
+     * This method is called if the user gets banned from the chat.
+     *
+     * @param line    The message from the chat (which is parsed to get the channel).
+     */
+    public void onBanned(String line){
+    }
+    
+    /**
+     * Called from a PircBotWhisper instance to notify of a whisper.
+     *
+     * @param sender   The user that sent the whisper.
+     * @param receiver The receiver of the whisper.
+     * @param contents The contents of the whisper.
+     */
+    public void onWhisper(String sender, String receiver, String contents) {
     }
 }
