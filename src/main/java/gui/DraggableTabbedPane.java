@@ -236,6 +236,16 @@ public class DraggableTabbedPane extends JTabbedPane {
                             menuItem = new JMenuItem("Clear Chat");
                             menuItem.addActionListener(listener);
                             popupMenu.add(menuItem);
+                            
+                            menuItem = new JMenuItem("Reconnect to channel");
+                            menuItem.addActionListener(listener);
+                            popupMenu.add(menuItem);
+                            
+                            menuItem = new JMenuItem("Edit Text Commands");
+                            menuItem.addActionListener(listener);
+                            menuItem.setEnabled(!second);
+                            popupMenu.add(menuItem);
+                            
 
                             popupMenu.show((DraggableTabbedPane) e.getSource(), e.getX(), e.getY());
                         }

@@ -5,9 +5,12 @@ import face.FaceManager;
 import gui.GUIMain;
 import irc.account.Oauth;
 import irc.account.Task;
+import irc.message.Message;
 import irc.message.MessageHandler;
+import irc.message.MessageQueue;
 import lib.pircbot.org.jibble.pircbot.PircBot;
 import lib.pircbot.org.jibble.pircbot.User;
+import lib.pircbot.org.jibble.pircbot.Channel;
 import sound.Sound;
 import sound.SoundEngine;
 import thread.ThreadEngine;
@@ -19,10 +22,14 @@ import util.comm.Command;
 import util.comm.ConsoleCommand;
 import util.misc.Raffle;
 import util.misc.Vote;
+import util.misc.Race;
+import util.settings.Settings;
+
 
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 
 public class IRCBot extends MessageHandler {
@@ -35,7 +42,9 @@ public class IRCBot extends MessageHandler {
     public ArrayList<Raffle> raffles;
 
     private static Vote poll;
+    private static Race race;
     private long lastAd;
+    private int initialConnections = 0;
 
     public IRCBot() {
         raffles = new ArrayList<>();
@@ -46,23 +55,30 @@ public class IRCBot extends MessageHandler {
 
     @Override
     public void onConnect() {
-
+    	getBot().log("Connecting to " + GUIMain.channelSet.size() + " channels");
         GUIMain.channelSet.forEach(this::doConnect);
-
-        //TODO do people want it to follow?
-        if (GUIMain.currentSettings.accountManager.getUserAccount() != null)
-            doConnect(GUIMain.currentSettings.accountManager.getUserAccount().getName());
-        	//GUIMain.channelSet.forEach(this::doConnect);
         GUIMain.updateTitle(null);
+        GUIMain.log(getBot().getNick() + " connected to " + initialConnections + " channels");
+    }
+    
+    @Override
+    public void onBanned(String line){
+    	String[] parts = line.split(" ");
+    	StringBuilder sb = new StringBuilder();
+    	sb.append(getBot().getNick()).append(" has been ");
+    	for (int i = 6; i < parts.length; i++){
+    		sb.append(parts[i]);
+    		sb.append(" ");
+    	}
+    	MessageQueue.addMessage(new Message(sb.toString(), Message.MessageType.BAN_NOTIFY).setChannel(parts[3].substring(1)));
     }
 
     public void doConnect(String channel) {
-        if (!channel.startsWith("#")) channel = "#" + channel;
-        GUIMain.currentSettings.accountManager.addTask(new Task(getBot(), Task.Type.JOIN_CHANNEL, channel));
-        //String channelName = "#" + channel;
+    	getBot().log("Trying to connect to " + channel);
     	String channelName = channel.startsWith("#") ? channel : "#" + channel;
         GUIMain.currentSettings.accountManager.addTask(
                 new Task(GUIMain.currentSettings.accountManager.getBot(), Task.Type.JOIN_CHANNEL, channelName));
+        initialConnections++;
     }
 
     /**
@@ -91,16 +107,26 @@ public class IRCBot extends MessageHandler {
     }
 
     public void onDisconnect() {
-        if (!GUIMain.shutDown && getBot() != null) {
-            GUIMain.currentSettings.accountManager.createReconnectThread(getBot());
+    	if (!GUIMain.shutDown && getBot() != null) {
+            if (GUIMain.currentSettings.autoReconnectAccounts)
+                GUIMain.currentSettings.accountManager.createReconnectThread(getBot().getConnection());
+            else {
+            	GUIMain.logCurrent("Auto-reconnects disabled, please check Preferences -> Auto-Reconnect!");
+            }
         }
     }
 
     @Override
     public void onMessage(String channel, String sender, String message) {
+    	
         if (message != null && channel != null && sender != null && GUIMain.currentSettings.accountManager.getViewer() != null) {
             String botnakUserName = GUIMain.currentSettings.accountManager.getUserAccount().getName();
             sender = sender.toLowerCase();
+            Channel ch = GUIMain.currentSettings.channelManager.getChannel(channel);
+            //Races - have to grab users' messages even if bot not set to reply to them
+            if (ch.getRace() != null && !ch.getRace().votingDone()){
+            	ch.getRace().addGuess(sender, message);
+            }
             if (!channel.contains(botnakUserName.toLowerCase())) {//in other channels
                 int replyType = GUIMain.currentSettings.botReplyType;
                 if (replyType == 0) return;
@@ -116,9 +142,9 @@ public class IRCBot extends MessageHandler {
 
             //raffles
             User u = GUIMain.currentSettings.channelManager.getUser(sender, true);
-            if (!raffles.isEmpty()) {
-                if (!winners.contains(u.getNick().toLowerCase())) {
-                    for (Raffle r : raffles) {
+            if (!ch.getRaffles().isEmpty()) {
+                if (!ch.getWinners().contains(u.getNick().toLowerCase())) {
+                    for (Raffle r : ch.getRaffles()) {
                         if (r.isDone()) {
                             continue;
                         }
@@ -133,12 +159,12 @@ public class IRCBot extends MessageHandler {
                     }
                 }
                 ArrayList<Raffle> toRemove = new ArrayList<>();
-                raffles.stream().filter(Raffle::isDone).forEach(r -> {
-                    winners.add(r.getWinner());
+                ch.getRaffles().stream().filter(Raffle::isDone).forEach(r -> {
+                    ch.getWinners().add(r.getWinner());
                     toRemove.add(r);
                 });
                 if (!toRemove.isEmpty()) {
-                    toRemove.forEach(raffles::remove);
+                    toRemove.forEach(ch.getRaffles()::remove);
                     toRemove.clear();
                 }
             }
@@ -149,29 +175,60 @@ public class IRCBot extends MessageHandler {
             //URL Checking
             ThreadEngine.submit(() -> {
                 int count = 0;
-                for (String part : split) {
+                ArrayList<String> splitList = new ArrayList<String>(Arrays.asList(split));
+                Response linkResponse = null;
+                for (int i = 0; i < splitList.size(); i++){
+                	String part = splitList.get(i);
                     if (count > 1) break;//only allowing 2 requests here; don't want spam
-                    if (part.startsWith("http") || part.startsWith("www")) {
+                    if (part.startsWith("http") || part.startsWith("www") || part.startsWith("https")) {
                         if (part.contains("youtu.be") || part.contains("youtube.com/watch")
                                 || part.contains("youtube.com/v") || part.contains("youtube.com/embed/")) {
-                            getBot().sendMessage(channel, APIRequests.YouTube.getVideoData(part).getResponseText());
+                        	linkResponse = APIRequests.YouTube.getVideoData(part);
                             count++;
-                        } else if (part.contains("bit.ly") || part.contains("tinyurl") || part.contains("goo.gl")) {
-                            getBot().sendMessage(channel, APIRequests.UnshortenIt.getUnshortened(part).getResponseText());
+                        } else if (part.contains("bit.ly") || part.contains("tinyurl") || part.contains("goo.gl") || part.contains("t.co/")) {
+                        	linkResponse = APIRequests.UnshortenIt.getUnshortened(part);
+                        	if (linkResponse.isSuccessful()){
+                        		String fullURL = linkResponse.getResponseText().substring(linkResponse.getResponseText().indexOf('!') + 1);
+                        		linkResponse.setResponseText(linkResponse.getResponseText().substring(0, linkResponse.getResponseText().indexOf(fullURL)));
+                        		splitList.add(fullURL);
+                        	}
                             count++;
                         } else if (part.contains("twitch.tv/")) {
-                            if (part.contains("/v/") || part.contains("/c/") || part.contains("/b/")) {
-                                getBot().sendMessage(channel, APIRequests.Twitch.getTitleOfVOD(part).getResponseText());
+                            if (part.contains("/v/") || part.contains("/c/") || part.contains("/b/") || part.contains("/videos/")) {
+                                linkResponse = APIRequests.Twitch.getTitleOfVOD(part);
                                 count++;
                             }
+                            if (part.contains("clips.twitch.tv/")){
+                            	linkResponse = APIRequests.Twitch.getTwitchClipInfo(part);
+                            	count++;
+                            }
+                        } else if (part.contains("twitter.com")) {
+                        	if (part.contains("/status/")){
+                        		linkResponse = APIRequests.Twitter.getTweetText(part);
+                        		count++;
+                        	}
                         }
+                        
                     }
                 }
+                if (linkResponse != null && !"".equals(linkResponse.getResponseText())){
+                	if (GUIMain.currentSettings.botWhisperMode && linkResponse.isWhisperable()){
+                		linkResponse.setResponseText("/w " + "Palehors68" + " " + linkResponse.getResponseText());
+                	}
+                    getBot().sendMessage(channel, linkResponse.getResponseText());
+                }
             });
-
+            
+            if (message.equals("!test") && sender.equalsIgnoreCase("palehors68")){
+            	Response testResponse = APIRequests.Twitch.getFollowAge("torje", sender);
+            	getBot().sendMessage(channel, testResponse.getResponseText());
+            	
+            }
+            
             String first = "";
             if (split.length > 1) first = split[1];
             //commands
+            //TODO turn all sendMessages into commandResponses
             if (message.startsWith("!")) {
                 String trigger = message.substring(1).split(" ")[0].toLowerCase();
                 String mess = message.substring(1);
@@ -186,14 +243,17 @@ public class IRCBot extends MessageHandler {
                         case ADD_FACE:
                             commandResponse = FaceManager.handleFace(mess);
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveFaces();
+                            commandResponse.canWhisper();
                             break;
                         case CHANGE_FACE:
                             commandResponse = FaceManager.handleFace(mess);
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveFaces();
+                            commandResponse.canWhisper();
                             break;
                         case REMOVE_FACE:
                             commandResponse = FaceManager.removeFace(first);
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveFaces();
+                            commandResponse.canWhisper();
                             break;
                         case TOGGLE_FACE:
                             commandResponse = FaceManager.toggleFace(first);
@@ -232,38 +292,81 @@ public class IRCBot extends MessageHandler {
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveKeywords();
                             break;
                         case ADD_QUOTE:
-                        	commandResponse = Utils.handleQuote(mess);
-                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
+                        	commandResponse = Utils.handleQuote(ch, mess);
+//                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
                         	break;   
+                        case REMOVE_QUOTE:
+                        	commandResponse = Utils.handleQuote(ch, mess);
+                        	break;
                         case REMOVE_ALL_QUOTES:
-                        	commandResponse = Utils.handleQuote(mess);
-                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
+                        	commandResponse = Utils.handleQuote(ch, mess);
+//                        	if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveQuotes();
                         	break; 
                         case GET_QUOTE:
-                        	commandResponse = Utils.handleQuote(mess);
+                        	commandResponse = Utils.handleQuote(ch, mess);
                         	break;
                         case SET_USER_COL:
                             commandResponse = Utils.handleColor(sender, mess, u.getColor());
                             if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveUserColors();
+                            commandResponse.canWhisper();
                             break;
                         case SET_COMMAND_PERMISSION:
-                            commandResponse = Utils.setCommandPermission(mess);
-                            if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveConCommands();
+                            commandResponse = Utils.setCommandPermission(mess, ch);
                             break;
                         case ADD_TEXT_COMMAND:
-                            commandResponse = Utils.addCommands(mess);
-                            if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveCommands();
+                        	if (trigger.contains("edit")) {
+                        		commandResponse = Utils.addCommands(mess, true, ch);
+                        	} else {
+                        		commandResponse = Utils.addCommands(mess, false, ch);
+                        	}
+//                            if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveCommands();
                             break;
                         case REMOVE_TEXT_COMMAND:
-                            commandResponse = Utils.removeCommands(first);
-                            if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveCommands();
+                            commandResponse = Utils.removeCommands(first, ch);
+//                            if (commandResponse.isSuccessful()) GUIMain.currentSettings.saveCommands();
                             break;
+                        case THROTTLE:
+                        	commandResponse = new Response("Usage: !throttle {textCommand} {time(1-60s)}");
+                        	if (split.length < 3) break;
+                        	String commTrigger = first.startsWith("!") ? first.substring(1) : first;
+                        	Command comm = Utils.getCommand(commTrigger, ch);
+                        	if (comm != null){
+                        		int seconds;
+                        		try{
+                        			seconds = Integer.parseInt(split[2]);
+                        		} catch (Exception e){
+                        			
+                        			break;
+                        		}
+                        		
+                        		comm.setDelayTimer(seconds);
+                        		commandResponse.setResponseText("Successfully throttled " + commTrigger + " to " + seconds + " seconds.");
+                        		
+                        		
+                        	}
+                        	
+                        	break;
+                        case THROTTLEBOT:
+                        	commandResponse = new Response("Bot is currently throttled to " + (ch.getChannelTimer().period / 1000) + " seconds.");
+                        	int seconds;
+                        	try{
+                    			seconds = Integer.parseInt(first);
+                    		} catch (Exception e){
+                    			
+                    			break;
+                    		}
+                        	if (seconds < 0) break;
+                        	ch.setChannelTimer(seconds);
+                        	if (seconds > 1000) seconds = seconds / 1000;
+                        	commandResponse.setResponseText("Successfully throttled bot to " + seconds + " seconds.");
+                        	break;
                         case ADD_DONATION:
                             commandResponse = GUIMain.currentSettings.donationManager.parseDonation(split);
                             break;
                         case SET_SUB_SOUND:
                             if (GUIMain.currentSettings.loadSubSounds()) {
-                                getBot().sendMessage(channel, "Reloaded sub sounds!");
+//                                getBot().sendMessage(channel, "Reloaded sub sounds!");
+                            	commandResponse = new Response("Reloaded sub sounds!", true);
                             }
                             break;
                         case SET_SOUND_PERMISSION:
@@ -281,13 +384,16 @@ public class IRCBot extends MessageHandler {
                                 try {
                                     Face f = FaceManager.nameFaceMap.remove(sender);
                                     if (f != null && new File(f.getFilePath()).delete())
-                                        getBot().sendMessage(channel, "Removed face for user: " + sender + " !");
+//                                        getBot().sendMessage(channel, "Removed face for user: " + sender + " !");
+                                    	commandResponse = new Response("Removed face for user: " + sender + " !", true);
                                 } catch (Exception e) {
-                                    getBot().sendMessage(channel, "Name face for user " + sender +
-                                            " could not be removed due to an exception!");
+//                                    getBot().sendMessage(channel, "Name face for user " + sender +
+//                                            " could not be removed due to an exception!");
+                                	commandResponse = new Response("Name face for user " + sender + " could not be removed due to an exception!");
                                 }
                             } else {
-                                getBot().sendMessage(channel, "The user " + sender + " has no name face!");
+//                                getBot().sendMessage(channel, "The user " + sender + " has no name face!");
+                            	commandResponse = new Response("The user " + sender + " has no name face!", true);
                             }
                             break;
                         case SET_STREAM_TITLE:
@@ -296,16 +402,23 @@ public class IRCBot extends MessageHandler {
                         case SEE_STREAM_TITLE:
                             String title = APIRequests.Twitch.getTitleOfStream(channel);
                             if (!"".equals(title)) {
-                                getBot().sendMessage(channel, "The title of the stream is: " + title);
+//                                getBot().sendMessage(channel, "The title of the stream is: " + title);
+                                commandResponse = new Response("The title of the stream is: " + title,true);
+                                commandResponse.addSenderToResponseText(sender);
+                                commandResponse.canWhisper();
                             }
                             break;
                         case SEE_STREAM_GAME:
                             String game = APIRequests.Twitch.getGameOfStream(channel);
                             if ("".equals(game)) {
-                                getBot().sendMessage(channel, "The streamer is currently not playing a game!");
+//                                getBot().sendMessage(channel, "The streamer is currently not playing a game!");
+                                commandResponse = new Response("The streamer is currently not playing a game!", true);
                             } else {
-                                getBot().sendMessage(channel, "The current game is: " + game);
+//                                getBot().sendMessage(channel, "The current game is: " + game);
+                                commandResponse = new Response("The current game is: " + game, true);
+                                commandResponse.addSenderToResponseText(sender);
                             }
+                            commandResponse.canWhisper();
                             break;
                         case SET_STREAM_GAME:
                             commandResponse = APIRequests.Twitch.setStreamStatus(key, channel, message, false);
@@ -316,21 +429,26 @@ public class IRCBot extends MessageHandler {
                                     int length = Utils.getTime(first);
                                     if (length == -1) length = 30;
                                     if (APIRequests.Twitch.playAdvert(key.getKey(), channel, length)) {
-                                        getBot().sendMessage(channel, "Playing an ad for " + length + " seconds!");
+//                                        getBot().sendMessage(channel, "Playing an ad for " + length + " seconds!");
+                                        commandResponse = new Response("Playing an ad for " + length + " seconds!", true);
                                         lastAd = System.currentTimeMillis();
                                     } else {
-                                        getBot().sendMessage(channel, "Error playing an ad!");
+//                                        getBot().sendMessage(channel, "Error playing an ad!");
+                                        commandResponse = new Response("Error playing an ad!");
                                         long diff = System.currentTimeMillis() - lastAd;
                                         if (lastAd > 0 && (diff < 480000)) {
                                             SimpleDateFormat sdf = new SimpleDateFormat("m:ss");
                                             Date d = new Date(diff);
                                             Date toPlay = new Date(480000 - diff);
-                                            getBot().sendMessage(channel, "Last ad was was only " + sdf.format(d)
-                                                    + " ago! You must wait " + sdf.format(toPlay) + " to play another ad!");
+//                                            getBot().sendMessage(channel, "Last ad was was only " + sdf.format(d)
+//                                                    + " ago! You must wait " + sdf.format(toPlay) + " to play another ad!");
+                                            commandResponse.setResponseText(commandResponse.getResponseText() + " Last ad was was only " + sdf.format(d)
+                                            		+ " ago! You must wait " + sdf.format(toPlay) + " to play another ad!");
                                         }
                                     }
                                 } else {
-                                    getBot().sendMessage(channel, "This OAuth key cannot play an advertisement!");
+//                                    getBot().sendMessage(channel, "This OAuth key cannot play an advertisement!");
+                                    commandResponse = new Response("This OAuth key cannot play an advertisement!");
                                 }
                             }
                             break;
@@ -339,7 +457,8 @@ public class IRCBot extends MessageHandler {
                                 String timeString = split[2];
                                 int time = Utils.getTime(timeString);
                                 if (time < 1) {
-                                    getBot().sendMessage(channel, "Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
+//                                    getBot().sendMessage(channel, "Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
+                                    commandResponse = new Response("Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
                                     break;
                                 }
                                 int perm = 0;//TODO select a parameter in Settings GUI that defines the default raffle
@@ -352,127 +471,194 @@ public class IRCBot extends MessageHandler {
                                 }
                                 Raffle r = new Raffle(getBot(), first, time, channel, perm);
                                 r.start();
-                                raffles.add(r);
+                                ch.getRaffles().add(r);
                                 //print the blarb
                                 getBot().sendMessage(channel, r.getStartMessage());
                                 getBot().sendMessage(channel, "NOTE: This is a promotion from " + channel.substring(1) +
                                         ". Twitch does not sponsor or endorse broadcaster promotions and is not responsible for them.");
                             } else {
-                                getBot().sendMessage(channel, "Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
+//                                getBot().sendMessage(channel, "Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
+                            	commandResponse = new Response("Failed to start raffle, usage: !startraffle (key) (time) (permission?)");
                             }
                             break;
                         case ADD_RAFFLE_WINNER:
-                            if (!winners.contains(first)) {
-                                winners.add(first);
-                                getBot().sendMessage(channel, "The user " + first + " has been added to the winners pool!");
+                            if (!ch.getWinners().contains(first)) {
+                                ch.getWinners().add(first);
+//                                getBot().sendMessage(channel, "The user " + first + " has been added to the winners pool!");
+                                commandResponse = new Response("The user " + first + " has been added to the winners pool!", true);
                             } else {
-                                getBot().sendMessage(channel, "The user " + first + " is already in the winners pool!");
+//                                getBot().sendMessage(channel, "The user " + first + " is already in the winners pool!");
+                                commandResponse = new Response("The user " + first + " is already in the winners pool!", true);
                             }
                             break;
                         case STOP_RAFFLE:
                             Raffle toRemove = null;
-                            for (Raffle r : raffles) {
+                            for (Raffle r : ch.getRaffles()) {
                                 if (r.getKeyword().equalsIgnoreCase(first)) {
                                     r.setDone(true);
                                     r.interrupt();
                                     toRemove = r;
-                                    getBot().sendMessage(channel, "The raffle with key " + first + " has been stopped!");
+//                                    getBot().sendMessage(channel, "The raffle with key " + first + " has been stopped!");
+                                    commandResponse = new Response("The raffle with key " + first + " has been stopped!",true);
                                     break;
                                 }
                             }
                             if (toRemove != null) {
-                                raffles.remove(toRemove);
+                                ch.getRaffles().remove(toRemove);
                             } else {
-                                getBot().sendMessage(channel, "There is no such raffle \"" + first + "\" !");
+//                                getBot().sendMessage(channel, "There is no such raffle \"" + first + "\" !");
+                                commandResponse = new Response("There is no such raffle \"" + first + "\" !");
                             }
                             break;
                         case REMOVE_RAFFLE_WINNER:
-                            if (winners.contains(first)) {
-                                if (winners.remove(first)) {
-                                    getBot().sendMessage(channel, "The user " + first + " was removed from the winners pool!");
+                            if (ch.getWinners().contains(first)) {
+                                if (ch.getWinners().remove(first)) {
+//                                    getBot().sendMessage(channel, "The user " + first + " was removed from the winners pool!");
+                                    commandResponse = new Response("The user " + first + " was removed from the winners pool!",true);
                                 }
                             } else {
-                                getBot().sendMessage(channel, "The user " + first + " is not in the winners pool!");
+//                                getBot().sendMessage(channel, "The user " + first + " is not in the winners pool!");
+                                commandResponse = new Response("The user " + first + " is not in the winners pool!",true);
                             }
                             break;
                         case SEE_WINNERS:
-                            if (!winners.isEmpty()) {
+                            if (!ch.getWinners().isEmpty() && ch.getWinners().size() > 0) {
                                 StringBuilder stanSB = new StringBuilder();
                                 stanSB.append("The current raffle winners are: ");
-                                for (String name : winners) {
+                                for (String name : ch.getWinners()) {
                                     stanSB.append(name);
                                     stanSB.append(", ");
                                 }
-                                getBot().sendMessage(channel, stanSB.toString().substring(0, stanSB.length() - 2) + " .");
+//                                getBot().sendMessage(channel, stanSB.toString().substring(0, stanSB.length() - 2) + " .");
+                                commandResponse = new Response(stanSB.toString().substring(0, stanSB.length() - 2) + " .", true);
                             } else {
-                                getBot().sendMessage(channel, "There are no recorded winners!");
+//                                getBot().sendMessage(channel, "There are no recorded winners!");
+                                commandResponse = new Response("There are no recorded winners!", true);
                             }
                             break;
                         case START_POLL:
-                            if (poll != null) {
-                                if (poll.isDone()) {
+                            if (ch.getPoll() != null) {
+                                if (ch.getPoll().isDone()) {
                                     createPoll(channel, message);
                                 } else {
-                                    getBot().sendMessage(channel, "Cannot start a poll with one currently running!");
+//                                    getBot().sendMessage(channel, "Cannot start a poll with one currently running!");
+                                    commandResponse = new Response("Cannot start a poll with one currently running!");
                                 }
                             } else {
                                 createPoll(channel, message);
                             }
                             break;
                         case POLL_RESULT:
-                            if (poll != null) {
-                                poll.printResults();
+                            if (ch.getPoll() != null) {
+                            	ch.getPoll().printResults();
                             } else {
-                                getBot().sendMessage(channel, "There never was a poll!");
+//                                getBot().sendMessage(channel, "There never was a poll!");
+                                commandResponse = new Response("There never was a poll!", true);
                             }
                             break;
                         case CANCEL_POLL:
-                            if (poll != null) {
-                                if (poll.isDone()) {
-                                    getBot().sendMessage(channel, "The poll is already finished!");
+                            if (ch.getPoll() != null) {
+                                if (ch.getPoll().isDone()) {
+//                                    getBot().sendMessage(channel, "The poll is already finished!");
+                                    commandResponse = new Response("The poll is already finished!", true);
                                 } else {
-                                    poll.interrupt();
-                                    getBot().sendMessage(channel, "The poll has been stopped.");
+                                	ch.getPoll().interrupt();
+//                                    getBot().sendMessage(channel, "The poll has been stopped.");
+                                    commandResponse = new Response("The poll has been stopped.", true);
                                 }
                             } else {
-                                getBot().sendMessage(channel, "There is no current poll!");
+//                                getBot().sendMessage(channel, "There is no current poll!");
+                                commandResponse = new Response("There is no current poll!", true);
                             }
                             break;
                         case VOTE_POLL:
-                            if (poll != null) {
-                                if (!poll.isDone()) {
+                            if (ch.getPoll() != null) {
+                                if (!ch.getPoll().isDone()) {
                                     int option;
                                     try {
                                         option = Integer.parseInt(first);
                                     } catch (Exception e) {
                                         break;
                                     }
-                                    poll.addVote(sender, option);
+                                    ch.getPoll().addVote(sender, option);
                                 }
                             }
                             break;
+                        case DAMPE_RACE:
+                        	if (ch.getRace() != null) {
+                        		if (ch.getRace().isDone()){
+                        			startRace(channel, message);
+                        		} else {
+//                        			getBot().sendMessage(channel, "The race is currently underway!");
+                        			commandResponse = new Response("The race is currently underway!", true);
+                        		}
+                        	} else {
+                        		startRace(channel, message);
+                        	}
+                        	break;
+                        case JUDGE_RACE:
+                        	commandResponse = new Response();
+                        	if (ch.getRace() != null){
+                        		if (ch.getRace().votingDone()) {
+	                        		if (first != ""){
+	                        			int result;
+	                        			try {
+	                        				result = Integer.parseInt(first);
+	                        			} catch (Exception e) {
+//	                        				getBot().sendMessage(channel, "You must enter the final race time. Ex: !judgerace 47");
+	                        				commandResponse.setResponseText("You must enter the final race time. Ex: !judgerace 47");
+	                        				break;
+	                        			}
+	                        			ch.getRace().interrupt();
+	                        			ch.getRace().judgeRace(first);
+//	                        			race = null;
+	                        		} else {
+//	                        			getBot().sendMessage(channel, "You must enter the final race time. Ex: !judgerace 47");
+	                        			commandResponse.setResponseText("You must enter the final race time. Ex: !judgerace 47");
+	                        		}
+                        		} else {
+//                        			getBot().sendMessage(channel, "Please wait until voting has finished before judging the race!");
+                        			commandResponse.setResponseText("Please wait until voting has finished before judging the race!");
+                        		}
+                        	} else {
+//                        		getBot().sendMessage(channel, "There isn't currently a race to judge. Come back later!");
+                        		commandResponse.setResponseText("There isn't currently a race to judge. Come back later!");
+                        	}
+                        	break;
                         case NOW_PLAYING:
                             commandResponse = APIRequests.LastFM.getCurrentlyPlaying();
+                            commandResponse.canWhisper();
                             break;
                         case SHOW_UPTIME:
                             commandResponse = APIRequests.Twitch.getUptimeString(channel.substring(1));
+                            commandResponse.addSenderToResponseText(sender);
+//                            commandResponse.canWhisper();
                             break;
                         case SEE_PREV_SOUND_DON:
                             //TODO if currentSettings.seePreviousDonEnable
-                            if (GUIMain.currentSettings.loadedDonationSounds)
+                            if (GUIMain.currentSettings.loadedDonationSounds){
                                 commandResponse = SoundEngine.getEngine().getLastDonationSound();
+                                commandResponse.canWhisper();
+                            }
                             break;
                         case SEE_PREV_SOUND_SUB:
                             //TODO if currentSettings.seePreviousSubEnable
-                            if (GUIMain.currentSettings.loadedSubSounds)
+                            if (GUIMain.currentSettings.loadedSubSounds) {
                                 commandResponse = SoundEngine.getEngine().getLastSubSound();
+                                commandResponse.canWhisper();
+                            }
                             break;
                         case SEE_OR_SET_REPLY_TYPE:
                             commandResponse = parseReplyType(first, botnakUserName);
+                            commandResponse.canWhisper();
                             break;
                         case SEE_OR_SET_VOLUME:
+                        	commandResponse = new Response();
                             if (first == null || first.equals("")) {
-                                getBot().sendMessage(channel, "Volume is " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+//                                getBot().sendMessage(channel, "Volume is " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+                                commandResponse.setResponseText("Volume is " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+                                commandResponse.wasSuccessful();
+                                commandResponse.canWhisper();
                             } else {
                                 Float volume = Float.parseFloat(first);
                                 if (volume > 100F)
@@ -480,22 +666,122 @@ public class IRCBot extends MessageHandler {
                                 else if (volume < 0F)
                                     volume = 0F;
                                 GUIMain.currentSettings.soundVolumeGain = volume;
-                                getBot().sendMessage(channel, "Volume set to " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+//                                getBot().sendMessage(channel, "Volume set to " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+                                commandResponse.setResponseText("Volume set to " + String.format("%.1f", GUIMain.currentSettings.soundVolumeGain));
+                                commandResponse.wasSuccessful();
+                                commandResponse.canWhisper();
                             }
                             break;
+                        case WHISPER:
+                        	GUIMain.currentSettings.botWhisperMode = true;
+                        	GUIMain.instance.setWhisperModeToggle();
+                        	commandResponse = new Response("Bot set to Whisper reply mode", true);
+                        	break;
+                        case TALK:
+                        	GUIMain.currentSettings.botWhisperMode = false;
+                        	GUIMain.instance.setWhisperModeToggle();
+                        	commandResponse = new Response("Bot set to Out Loud reply mode", true);
+                        	break;
+                        case WR:
+                        	commandResponse = APIRequests.SpeedRun.processWRRequest(ch, message);
+                        	commandResponse.addSenderToResponseText(sender);
+                        	break;
+                        case HOST_USER:
+                        	if (split.length < 2){
+                        		commandResponse = new Response("Usage: !host <twitch user> <optional:raid message>");
+                        		break;
+                        	}
+                        	String twitchUser = split[1];
+                        	if (!APIRequests.Twitch.isChannelLive(twitchUser)) {
+                        		commandResponse = new Response(twitchUser + " is not live right now!");
+                        		break;
+                        	}
+                        	String raid = "";
+                        	if (split.length > 2){ //There is a raid message
+                        		raid = mess.substring(mess.indexOf(twitchUser) + twitchUser.length()).trim();
+                        	}
+                        	
+                        	int messageCount = 1;
+                        	if (IAmAModOf(channel)) { 
+                        		messageCount = 10;
+                        		getBot().setMessageDelay(100);
+                        	}else {
+                        		getBot().setMessageDelay(1500);
+                        	}
+                        	for (int i = 1; i <= messageCount; i++){
+                        		String hostMessage = "http://www.twitch.tv/" + twitchUser;
+                        		if (!"".equals(raid)) hostMessage = hostMessage + " RAID: " + raid;
+                        		getBot().sendMessage(channel, hostMessage);
+                        	}
+                        	
+                        	break;
+                        case SET_GAME:
+                        	if (!"".equals(first)){
+                        		commandResponse = ch.setGame(mess);
+                        	}
+                        	break;
+                        case CLEAR_GAME:
+                        	commandResponse = ch.clearGame();
+                        	break;
+                        case CAT:
+                        	commandResponse = new Response();
+                        	if ("".equals(first) || first == null){
+                        		if(ch.hasCategory()){
+                        			commandResponse.setResponseText("The current category is " + ch.getGameCategory() + "!");
+                        		} else {
+                        			commandResponse.setResponseText("No category is currently set!");
+                        		}
+                        	} else {
+                        		String cat = message.substring(5);
+                        		if (cat.equalsIgnoreCase("none")){
+                        			ch.clearCategory();
+                        		} else {
+                        			ch.setGameCategory(cat);
+                        		}
+                        		commandResponse.setResponseText("The current category has been changed to " + cat + "!");
+                        	}
+                        	break;
+                        case HELP:
+                        	commandResponse = new Response("Use \"!help <command>\" for command usage! Parameters: {} are mandatory, <> are optional.");
+                        	if (!"".equals(first)){
+                        		if (first.startsWith("!")) first = first.substring(1);
+                        		try{
+                        		  commandResponse.setResponseText("@" + u.getDisplayName() + ": " + Utils.getConsoleCommand(first, channel, u).getHelpText());
+                        		} catch (NullPointerException e) {
+                        			commandResponse.setResponseText("Command !" + first + " does not exist!");
+                        		}
+                        	}
+                        	
+                        	break;
+                        case FOLLOWAGE:
+                        	commandResponse = APIRequests.Twitch.getFollowAge(channel, sender);
+                        	commandResponse.addSenderToResponseText(sender);
+                        	break;
                         default:
                             break;
 
                     }
-                    if (commandResponse != null && !"".equals(commandResponse.getResponseText()))
+
+                    if (commandResponse != null && !"".equals(commandResponse.getResponseText())
+                    		&& (!ch.getChannelTimer().isRunning() || trigger.contains("throttle"))){
+                    	if (GUIMain.currentSettings.botWhisperMode && commandResponse.isWhisperable()){
+                    		commandResponse.setResponseText("/w " + sender + " " + commandResponse.getResponseText());
+                    	}
                         getBot().sendMessage(channel, commandResponse.getResponseText());
+                    }
                 }
+//                if (message.equals("!wwtest")){
+//                	Response commandResponse = new Response(APIRequests.SpeedRun.getWorldRecordByCategory(APIRequests.SpeedRun.Category.ANY));
+//                	commandResponse.setResponseText(commandResponse.getResponseText() + '\t');
+//                	commandResponse.setResponseText(commandResponse.getResponseText() + APIRequests.SpeedRun.getWorldRecordByCategory(APIRequests.SpeedRun.Category.NOWW));
+//                	getBot().sendMessage(channel, commandResponse.getResponseText());
+//                }
                 //text command
-                Command c = Utils.getCommand(trigger);
+                Command c = Utils.getCommand(trigger, ch);
                 //we check the senderIsBot here because we want to be able to call console commands,
                 //but we don't want the bot to trigger its own text commands, which
                 //could infinite loop (two commands calling each other over and over)
-                if (c != null && !senderIsBot && c.getMessage().data.length > 0 && !c.getDelayTimer().isRunning()) {
+                if (c != null && !senderIsBot && c.getMessage().data.length > 0 && !c.getDelayTimer().isRunning() && !ch.getChannelTimer().isRunning()) {
                     StringArray sa = c.getMessage();
                     if (c.hasArguments()) {
                         //build arguments if it has any
@@ -508,28 +794,56 @@ public class IRCBot extends MessageHandler {
                         System.arraycopy(split, 1, definedArguments, 0, argAmount);
                         sa = c.buildMessage(sa, definedArguments);
                     }
+                    //check for WR replacement
+//                    sa = APIRequests.SpeedRun.replaceWithWR(sa);
+                    
                     //send the message
                     for (String s : sa.data) {
                         getBot().sendMessage(channel, s);
                     }
                     c.getDelayTimer().reset();
-                }
+                    ch.getChannelTimer().reset();
+                } 
             }
         }
+    }
+    
+    @Override
+    public void onAction(final String sender, final String channel, final String action) {
+    	
     }
 
     //!startpoll time options
     private void createPoll(String channel, String message) {
         if (message.contains("]")) {//because what's the point of a poll with one option?
+        	Channel ch = GUIMain.currentSettings.channelManager.getChannel(channel);
+        	if (ch == null) return;
             int first = message.indexOf(" ") + 1;
             int second = message.indexOf(" ", first) + 1;
             String[] split = message.split(" ");
             int time = Utils.getTime(split[1]);
             if (time > 0) {
-                poll = new Vote(channel, time, message.substring(second).split("\\]"));
-                poll.start();
+                ch.setPoll(new Vote(channel, time, message.substring(second).split("\\]")));
+                ch.getPoll().start();
             }
         }
+    }
+    
+    //!damperace time
+    private void startRace(String channel, String message){
+    	int time = 20;
+    	int first = message.indexOf(" ") + 1;
+    	Channel ch = GUIMain.currentSettings.channelManager.getChannel(channel);
+    	if (ch == null) return;
+    	String[] split = message.split(" ");
+    	if (first > 0 && first <= 60){
+    		time = Utils.getTime(split[1]);    		
+    	}
+    	
+    	if (time > 0) {
+    		ch.setRace(new Race(channel, time));
+    		ch.getRace().start();
+    	}
     }
 
     private Response parseReplyType(String first, String botnakUser) {
@@ -540,6 +854,7 @@ public class IRCBot extends MessageHandler {
                 if (perm > 2) perm = 2;
                 else if (perm < 0) perm = 0;
                 GUIMain.currentSettings.botReplyType = perm;
+                GUIMain.instance.setBotReplyRadioButton();
                 toReturn.setResponseText("Successfully changed the bot reply type (for other channels) to: " + getReplyType(perm, botnakUser));
             } else {
                 toReturn.setResponseText("Current bot reply type for other channels is: " +
@@ -559,5 +874,9 @@ public class IRCBot extends MessageHandler {
         } else {
             return "Reply to nobody (" + perm + ")";
         }
+    }
+    
+    private boolean IAmAModOf(String channel){
+    	return GUIMain.currentSettings.channelManager.getChannel(channel).isMod(getBot().getNick());
     }
 }

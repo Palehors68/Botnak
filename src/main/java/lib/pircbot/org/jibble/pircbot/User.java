@@ -19,6 +19,7 @@ import irc.Donor;
 
 import java.awt.*;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.HashSet;
 
 /**
  * This class is used to represent a user on an IRC server.
@@ -35,10 +36,11 @@ import java.util.concurrent.CopyOnWriteArraySet;
  */
 public class User implements Comparable<User> {
 
-    private boolean staff = false, admin = false, global_mod = false, turbo = false;
+    private boolean staff = false, admin = false, global_mod = false, turbo = false, prime = false;
     private String _nick, _lowerNick, displayName = null;
 
     private CopyOnWriteArraySet<Integer> emotes = new CopyOnWriteArraySet<>();
+    private HashSet<Integer> emoteSet = new HashSet<Integer>();
 
     private Color color = null;
     private Donor donor = null;
@@ -141,6 +143,14 @@ public class User implements Comparable<User> {
     public void setTurbo(boolean newBool) {
         turbo = newBool;
     }
+    
+    public boolean isPrime(){
+    	return prime;
+    }
+    
+    public void setPrime(boolean bState){
+    	prime = bState;
+    }
 
     /**
      * Checks to see if the user is a subscriber of the channel.
@@ -149,7 +159,7 @@ public class User implements Comparable<User> {
      */
     public boolean isSubscriber(String channel) {
         Channel c = GUIMain.currentSettings.channelManager.getChannel(channel);
-        return c != null && c.isSubscriber(this);
+        return c != null && (c.isSubscriber(this) != -1);
     }
 
     public boolean isDonor() {
@@ -196,7 +206,7 @@ public class User implements Comparable<User> {
     }
 
     public void setDisplayName(String name) {
-        if (displayName == null) {
+        if (displayName == null && name.equalsIgnoreCase(this._lowerNick)) {
             displayName = name;
         }
     }
@@ -271,6 +281,23 @@ public class User implements Comparable<User> {
             return o._lowerNick.compareTo(_lowerNick);
         }
         return -1;
+    }
+    
+    public boolean hasEmoteSet(Integer set){
+    	return this.emoteSet.contains(set);
+    }
+    
+    public void handleEmoteSet(String emoteSet){
+    	if (emoteSet.equals("")) return;
+    	String[] sets = emoteSet.split(",");
+    	for (int i = 0; i < sets.length; i++){
+    		Integer currentSet;
+    		try{
+    			currentSet = Integer.parseInt(sets[i]) * -1;
+    			if (!this.emoteSet.contains(currentSet))
+    			this.emoteSet.add(currentSet);
+    		} catch (Exception e) {}
+    	}
     }
 
 }

@@ -3,6 +3,8 @@ package lib.pircbot.org.jibble.pircbot;
 import java.util.ArrayList;
 import java.util.concurrent.CopyOnWriteArraySet;
 
+import util.APIRequests;
+
 /**
  * Created by Nick on 12/22/13.
  */
@@ -23,6 +25,7 @@ public class ChannelManager {
      * @param toAdd The channel to add.
      */
     public void addChannel(Channel toAdd) {
+
         channels.add(toAdd);
     }
 
@@ -95,7 +98,7 @@ public class ChannelManager {
      */
     public void handleSubscriber(String channel, String user) {
         Channel c = getChannel(channel);
-        if (c != null) c.addSubscriber(user);
+        if (c != null) c.addSubscriber(user, 0); //0 for new subs
     }
 
     /**

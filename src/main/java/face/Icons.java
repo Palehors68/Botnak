@@ -47,6 +47,9 @@ public class Icons {
             case TURBO:
                 icon = sizeIcon(GUIMain.currentSettings.turboIcon);
                 break;
+            case PRIME:
+            	icon = sizeIcon(GUIMain.currentSettings.primeIcon);
+            	break;
             case SUBSCRIBER:
                 URL subIcon = FaceManager.getSubIcon(channel);
                 if (subIcon != null) {

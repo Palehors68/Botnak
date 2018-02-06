@@ -1,10 +1,12 @@
 package gui.listeners;
 
 import util.Utils;
+import gui.GUIMain;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
+
 import java.awt.*;
 import java.awt.event.*;
 
@@ -50,6 +52,7 @@ public class TabTitleEditListener extends MouseAdapter implements ChangeListener
 
     @Override
     public void stateChanged(ChangeEvent e) {
+    	GUIMain.instance.tabChanged();
         renameTabTitle();
     }
 

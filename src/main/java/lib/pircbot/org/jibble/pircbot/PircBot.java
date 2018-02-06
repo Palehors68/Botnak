@@ -24,6 +24,10 @@ import java.io.*;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.StringTokenizer;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import lib.pircbot.org.jibble.pircbot.PircBotConnection;
 
 /**
  * PircBot is a Java framework for writing IRC bots quickly and easily.
@@ -62,6 +66,8 @@ import java.util.StringTokenizer;
  */
 public class PircBot {
 
+	private PircBotConnection connection;
+	
     public ChannelManager getChannelManager() {
         return GUIMain.currentSettings.channelManager;
     }
@@ -79,9 +85,28 @@ public class PircBot {
      */
     public PircBot(MessageHandler messageHandler) {
         handler = messageHandler;
+        connection = new PircBotConnection(this, PircBotConnection.ConnectionType.NORMAL);
+    }
+    
+    public PircBot(MessageHandler messageHandler, String nick) {
+//        handler = messageHandler;
+//        setNick(nick);
+//        connection = new PircBotConnection(this, PircBotConnection.ConnectionType.NORMAL);
+//        whisperConnection = new PircBotConnection(this, PircBotConnection.ConnectionType.WHISPER);
+    	this(messageHandler);
+    	setNick(nick);
+    	
     }
 
 
+    public boolean connect() {
+        if (connection.connect()) {
+            getMessageHandler().onConnect();
+            return true;
+        }
+        return (false);
+    }
+    
     /**
      * Attempt to connect to the specified IRC server using the supplied
      * password.
@@ -90,7 +115,7 @@ public class PircBot {
      * @param hostname The hostname of the server to connect to.
      * @param port     The port number to connect to on the server.
      */
-    public final boolean connect(String hostname, int port) {
+    /*public final boolean connect(String hostname, int port) {
 
         if (isConnected()) {
             return false;
@@ -197,7 +222,7 @@ public class PircBot {
         sendRawLine("CAP REQ :twitch.tv/tags");
         getMessageHandler().onConnect();
         return true;
-    }
+    }*/
 
 
     /**
@@ -208,12 +233,12 @@ public class PircBot {
      *
      * @since PircBot 0.9.9
      */
-    public final void reconnect() {
-        if (getServer() == null || getPassword() == null || getPort() == -1) {
-            return;
-        }
-        connect(getServer(), getPort());
-    }
+//    public final void reconnect() {
+//        if (getServer() == null || getPassword() == null || getPort() == -1) {
+//            return;
+//        }
+//        connect(getServer(), getPort());
+//    }
 
 
     /**
@@ -284,7 +309,7 @@ public class PircBot {
      */
     public final void sendRawLine(String line) {
         if (isConnected()) {
-            _outputThread.sendRawLine(line);
+        	connection.getOutputThread().sendRawLine(line);
         }
     }
 
@@ -301,6 +326,12 @@ public class PircBot {
     }
 
 
+    public PircBotConnection getConnection() {
+        return connection;
+    }
+
+    
+    
     /**
      * Sends a message to a channel or a private message to a user.  These
      * messages are added to the outgoing message queue and sent at the
@@ -320,14 +351,40 @@ public class PircBot {
      * @param message The message to send.
      */
     public final void sendMessage(String target, String message) {
+    	currentChannel = GUIMain.currentSettings.channelManager.getChannel(target);
+    	if (message.startsWith("!asbot")){
+    		handleLine(":" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :" + message);
+    		return;
+    	} else if (message.equals("!recon")){
+    		GUIMain.currentSettings.accountManager.getViewer().getMessageHandler().onMessage(target, GUIMain.currentSettings.accountManager.getViewer().getNick(), message);
+    		return;
+    	} else if (message.startsWith("/w")){
+    		String[] split = message.split(" ", 3);
+            sendWhisper(split[1], split[2]);
+            getMessageHandler().onWhisper(getNick(), split[1], split[2]);
+    	} else {
         sendRawMessage(target, message);
         if (message.startsWith("/me")) {
-            handleLine(":" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :\u0001ACTION " + message.substring(4) + "\u0001");
+        	getMessageHandler().onAction(getNick(), target, message.substring(4));
         } else {
-            handleLine(":" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :" + message);
-        }
+        	getMessageHandler().onMessage(target, getNick(), message);
+        }}
     }
 
+    public Channel getCurrentChannel(){
+    	return currentChannel;
+    }
+    
+    public void sendWhisper(String target, String message) {
+        sendRawWhisper("/w " + target + " " + message);
+    }
+    
+    public void sendRawWhisper(String raw) {
+        if (isConnected())
+            connection.getOutQueue().add("PRIVMSG #jtv :" + raw);
+        else log("Whisper not connected!");
+    }
+    
     /**
      * Sends a message that does not show up in the main GUI.
      *
@@ -335,7 +392,9 @@ public class PircBot {
      * @param message The message to send.
      */
     public void sendRawMessage(String channel, String message) {
-        _outQueue.add("PRIVMSG " + channel + " :" + message);
+    	if (isConnected())
+//        _outQueue.add("PRIVMSG " + channel + " :" + message);
+    		connection.getOutQueue().add("PRIVMSG " + channel + " :" + message);
     }
 
     /**
@@ -358,7 +417,7 @@ public class PircBot {
      * @param line The line to add to the log.
      */
     public void log(String line) {
-        if (_verbose) System.out.println(System.currentTimeMillis() + " " + line);
+        if (_verbose) System.out.println(System.currentTimeMillis() + " " + getNick() + " " + line);
     }
 
 
@@ -372,15 +431,14 @@ public class PircBot {
      * @param line The raw line of text from the server.
      */
     protected void handleLine(String line) {
-        log(line);
 
         // Check for server pings.
-        if (line.startsWith("PING ")) {
-            // Respond to the ping and return immediately.
-            sendRawLine("PONG " + line.substring(5));
-            return;
-        }
-        line = line.replaceAll("\\s+", " ");
+//        if (line.startsWith("PING ")) {
+//            // Respond to the ping and return immediately.
+//            sendRawLine("PONG " + line.substring(5));
+//            return;
+//        }
+//        line = line.replaceAll("\\s+", " ");
 
         String sourceNick = "";
         String sourceLogin = "";
@@ -403,7 +461,7 @@ public class PircBot {
         String command = tokenizer.nextToken();
         String target = null;
 
-        if (checkCommand(command, tags, line, content, tokenizer)) return;
+        if (checkCommand(command, tags, line, content, tokenizer, senderInfo)) return;
 
         int exclamation = senderInfo.indexOf("!");
         int at = senderInfo.indexOf("@");
@@ -460,23 +518,26 @@ public class PircBot {
                 getMessageHandler().onAction(sourceNick, target, request.substring(7));
             }
         } else if (command.equals("PRIVMSG") && _channelPrefixes.indexOf(target.charAt(0)) >= 0) {
-            if (sourceNick.equalsIgnoreCase("jtv")) {
-                getMessageHandler().onJTVMessage(target.substring(1), content);
-                //TODO just incase, remove this if block if twitch no longer sends these
-                return;
-            }
+//            if (sourceNick.equalsIgnoreCase("jtv")) {
+//                getMessageHandler().onJTVMessage(target.substring(1), content);
+//                //TODO just incase, remove this if block if twitch no longer sends these
+//                return;
+//            }
 
             //catch the subscriber message
-            if (sourceNick.equalsIgnoreCase("twitchnotify")) {//THIS MAY CHANGE IN THE FUTURE
-                if (line.contains("subscribed!") || line.contains("subscribed for")) {
+            if (sourceNick.equalsIgnoreCase("twitchnotify")) {
+                if (line.contains("resubscribed")) 
+                {
+                	getMessageHandler().onJTVMessage(target, content, null);
+                } else if (line.contains("subscribed")) {
                     //we dont want to get the hosted sub messages, Botnak should be in that chat for that
                     String user = content.split(" ")[0];
                     getChannelManager().handleSubscriber(target, user);
                     getMessageHandler().onNewSubscriber(target, content, user);
-                } else if (line.contains("resubscribed")) {
-                    getMessageHandler().onJTVMessage(target.substring(1), content);
                 }
                 return;
+            } else if (tags != null && tags.contains("bits=")){
+            	
             }
             // This is a normal message to a channel.
             getMessageHandler().onMessage(target, sourceNick, content);
@@ -509,14 +570,21 @@ public class PircBot {
      */
     private void processServerResponse(int code, String response) {
         if (code == 366) {//"END OF NAMES"
-            int channelEndIndex = response.indexOf(" :");
+        	int channelEndIndex = response.indexOf(" :");
             String channel = response.substring(response.lastIndexOf(' ', channelEndIndex - 1) + 1, channelEndIndex);
             sendRawMessage(channel, ".mods");//start building mod list
+        }
+        if (code == 353){
+        	int channelEndIndex = response.indexOf(" :");
+            String channel = response.substring(response.lastIndexOf(' ', channelEndIndex - 1) + 1, channelEndIndex);
+        	String user = response.substring(0, response.indexOf("=")).trim();
+        	//if (user.equalsIgnoreCase(GUIMain.currentSettings.accountManager.getBot().getNick())) sendMessage(channel, "/me " + GUIMain.currentSettings.welcomeMessage);
+        	GUIMain.log(user + " successfully connected to " + channel);
         }
         onServerResponse(code, response);
     }
 
-    private boolean checkCommand(String command, String tags, String line, String content, StringTokenizer tokenizer) {
+    private boolean checkCommand(String command, String tags, String line, String content, StringTokenizer tokenizer, String senderInfo) {
         String target;
         if ("CLEARCHAT".equals(command)) {
             target = tokenizer.nextToken();
@@ -532,14 +600,23 @@ public class PircBot {
                 target = tokenizer.nextToken();
                 buildMods(target, content);
                 return true;
-            } else if (!tags.contains("host_on") && !tags.contains("host_off")) {//handled above
+            } else if (tags.contains("msg_banned")) {
+            	getMessageHandler().onBanned(line);
+            	return true;
+            }else if (!tags.contains("host_on") && !tags.contains("host_off")) {//handled above
                 target = tokenizer.nextToken();
-                getMessageHandler().onJTVMessage(target.substring(1), content);
+                getMessageHandler().onJTVMessage(target.substring(1), content, tags);
                 return true;
-            }
+            } 
         } else if ("ROOMSTATE".equals(command)) {
             target = tokenizer.nextToken();
             parseTags(tags, null, target);
+            return true;
+        } else if ("WHISPER".equals(command)) {
+            target = tokenizer.nextToken();
+            String nick = senderInfo.substring(1, senderInfo.indexOf('!'));
+            parseTags(tags, nick, null);
+            getMessageHandler().onWhisper(nick, target, content);
             return true;
         }
         return false;
@@ -549,10 +626,11 @@ public class PircBot {
         String[] parts = line.split(" ");
         String tags = parts[0];
         String channel = parts[3];
-        parseTags(tags, GUIMain.currentSettings.accountManager.getUserAccount().getName(), channel);
+        parseTags(tags, getNick(), channel);
     }
 
     private void parseTags(String line, String user, String channel) {
+    	try {
         if (line != null) {
             line = line.substring(1);
             String[] parts = line.split(";");
@@ -589,29 +667,60 @@ public class PircBot {
                         break;
                     case "r9k":
                         if ("1".equals(value)) {
-                            getMessageHandler().onJTVMessage(channel, "This room is in r9k mode.");
+                            getMessageHandler().onJTVMessage(channel, "This room is in r9k mode.", key);
                         }
                         break;
                     case "slow":
                         if (!"0".equals(value)) {
                             getMessageHandler().onJTVMessage(channel,
-                                    "This room is in slow mode. You may send messages every " + value + " seconds.");
+                                    "This room is in slow mode. You may send messages every " + value + " seconds.", key);
                         }
                         break;
                     case "subs-only":
                         if ("1".equals(value)) {
                             getMessageHandler().onJTVMessage(channel,
-                                    "This room is in subscribers-only mode.");
+                                    "This room is in subscribers-only mode.", key);
                         }
                         break;
                     case "emote-sets":
+                    	User u = getChannelManager().getUser(user, false);
+                    	if (u != null){
+                    		u.handleEmoteSet(value);
+                    	}
                         FaceManager.handleEmoteSet(value);
                         break;
+                    case "badges":
+                    	
+                    	if (value.contains("bits")){
+                    		Matcher m = Pattern.compile("bits/(\\d+)").matcher(value);
+                    		if (m.find())
+                    			getChannelManager().getChannel(channel).setCheer(user, Integer.parseInt(m.group(1)));
+                    	}
+                    	
+                    	if (value.contains("premium"))
+                    		getChannelManager().getUser(user, true).setPrime(true);
+                    	
+                    	if (value.contains("subscriber")) {
+                    		Matcher m = Pattern.compile("subscriber/(\\d+)").matcher(value);
+                    		if (m.find()) {
+                    			Channel c = getChannelManager().getChannel(channel);
+                    			if (c != null) c.addSubscriber(user, Integer.parseInt(m.group(1)));
+                    		}
+                    	}
+                    	break;
+                    case "bits":
+                    	//this message contains a cheer!
+                    	//This is handled above. Don't worry!
+                    	break;
                     default:
                         break;
                 }
             }
         }
+    	} catch (java.lang.NullPointerException e) {
+    		GUIMain.log("Null pointer for: " + line + '\n' + user + '\n' + channel);
+//    		System.out.println("Null pointer for: " + line + '\t' + user + '\t' + channel);
+    	}
     }
 
     private void buildMods(String channel, String line) {
@@ -655,7 +764,7 @@ public class PircBot {
 
     /**
      * This method is called whenever we receive a line from the server that
-     * the PircBot has not been programmed to recognise.
+     * the PircBot has not been programmed to recognize.
      * <p/>
      * The implementation of this method in the PircBot abstract class
      * performs no actions and may be overridden as required.
@@ -740,8 +849,8 @@ public class PircBot {
      *
      * @return True if and only if the PircBot is currently connected to a server.
      */
-    public final synchronized boolean isConnected() {
-        return _inputThread != null && _inputThread.isConnected();
+    public boolean isConnected() {
+    	return connection.isConnected();
     }
 
 
@@ -956,9 +1065,9 @@ public class PircBot {
                 case "mod":
                     if (c != null) c.addMods(user);
                     break;
-                case "subscriber":
-                    if (c != null) c.addSubscriber(user);
-                    break;
+//                case "subscriber":  //we now handle subs using the badges since it contains the length
+//                    if (c != null) c.addSubscriber(user);
+//                    break;
                 case "turbo":
                     getChannelManager().getUser(user, true).setTurbo(true);
                     break;
@@ -1026,6 +1135,7 @@ public class PircBot {
     // Outgoing message stuff.
     private Queue<String> _outQueue = new Queue<>();
     private long _messageDelay = 1000;
+    private Channel currentChannel;
 
     // Default settings for the PircBot.
     private boolean _verbose = false;

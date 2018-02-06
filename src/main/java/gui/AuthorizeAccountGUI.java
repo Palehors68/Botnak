@@ -28,13 +28,14 @@ public class AuthorizeAccountGUI extends JFrame {
         if (accountNameField.getText().length() > 0) {
             String URL = "https://api.twitch.tv/kraken/oauth2/authorize" +
                     "?response_type=token" +
-                    "&client_id=qw8d3ve921t0n6e3if07l664f1jn1y7" +
+                    "&client_id=5xg0sgb6dymmmmbyqwt1zppij5xxpi" +
                     "&redirect_uri=http://gocnak.github.io/Botnak/token_redirect.html" +
-                    "&scope=chat_login";
+                    "&scope=user:edit+chat_login+openid";
             if (/*TODO implement "Read Subs" box*/true) URL += "+channel_subscriptions";
             if (boxCommercial.isSelected()) URL += "+channel_commercial";
             if (boxEditStream.isSelected()) URL += "+channel_editor";
             if (boxFollowed.isSelected()) URL += "+user_follows_edit";
+            URL += "+user_subscriptions";
             Utils.openWebPage(URL);
             TokenListener tl = new TokenListener(this);
             tl.start();

@@ -8,6 +8,7 @@ public enum IconEnum {
     ADMIN("Admin"),
     STAFF("Staff"),
     TURBO("Turbo"),
+    PRIME("Prime"),
     SUBSCRIBER("Subscriber"),
     DONOR_BASIC("Donor"),
     DONOR_LOW("Donor"),

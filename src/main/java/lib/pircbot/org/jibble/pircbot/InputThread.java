@@ -23,6 +23,8 @@ import java.io.StringWriter;
 import java.net.Socket;
 import java.util.StringTokenizer;
 
+import lib.pircbot.org.jibble.pircbot.PircBotConnection;
+
 /**
  * A Thread which reads lines from the IRC server.  It then
  * passes these lines to the PircBot without changing them.
@@ -48,6 +50,13 @@ public class InputThread extends Thread {
         _breader = breader;
         this.setName(this.getClass() + "-Thread");
     }
+    
+    InputThread(PircBotConnection conn, Socket socket, BufferedReader breader) {
+        connection = conn;
+        _socket = socket;
+        _breader = breader;
+        this.setName(this.getClass() + "-Thread");
+    }
 
 
     /**
@@ -57,7 +66,7 @@ public class InputThread extends Thread {
      * @param line The raw line to send to the IRC server.
      */
     void sendRawLine(String line) {
-        _bot.sendRawLine(line);
+    	connection.sendRawLine(line);
     }
 
 
@@ -85,6 +94,7 @@ public class InputThread extends Thread {
      * in your code is something you should really fix.
      */
     public void run() {
+    	
         try {
             boolean running = true;
             while (running) {
@@ -92,22 +102,31 @@ public class InputThread extends Thread {
                     String line;
                     while (((line = _breader.readLine()) != null) && !GUIMain.shutDown) {
                         try {
-                            _bot.handleLine(line);
+                        	connection.getBot().log(line);
+                        	if (line.startsWith("PING ")) {
+                                // Respond to the ping and return immediately.
+                                sendRawLine("PONG " + line.substring(5));
+                            } else {
+                                line = line.replaceAll("\\s+", " ");
+                                connection.getBot().handleLine(line);
+                            }
+//                            _bot.handleLine(line);
                         } catch (Throwable t) {
                             // Stick the whole stack trace into a String so we can output it nicely.
-                            StringWriter sw = new StringWriter();
-                            PrintWriter pw = new PrintWriter(sw);
-                            t.printStackTrace(pw);
-                            pw.flush();
-                            StringTokenizer tokenizer = new StringTokenizer(sw.toString(), "\r\n");
-                            _bot.log("### Your implementation of PircBot is faulty and you have");
-                            _bot.log("### allowed an uncaught Exception or Error to propagate in your");
-                            _bot.log("### code. It may be possible for PircBot to continue operating");
-                            _bot.log("### normally. Here is the stack trace that was produced: -");
-                            _bot.log("### ");
-                            while (tokenizer.hasMoreTokens()) {
-                                _bot.log("### " + tokenizer.nextToken());
-                            }
+                        	GUIMain.log(t);
+//                            StringWriter sw = new StringWriter();
+//                            PrintWriter pw = new PrintWriter(sw);
+//                            t.printStackTrace(pw);
+//                            pw.flush();
+//                            StringTokenizer tokenizer = new StringTokenizer(sw.toString(), "\r\n");
+//                            _bot.log("### Your implementation of PircBot is faulty and you have");
+//                            _bot.log("### allowed an uncaught Exception or Error to propagate in your");
+//                            _bot.log("### code. It may be possible for PircBot to continue operating");
+//                            _bot.log("### normally. Here is the stack trace that was produced: -");
+//                            _bot.log("### ");
+//                            while (tokenizer.hasMoreTokens()) {
+//                                _bot.log("### " + tokenizer.nextToken());
+//                            }
                         }
                     }
                     running = false;
@@ -115,11 +134,13 @@ public class InputThread extends Thread {
                     // This will happen if we haven't received anything from the server for a while.
                     // So we shall send it a ping to check that we are still connected.
                     sendRawLine("PING " + (System.currentTimeMillis() / 1000));
+                    GUIMain.log(iioe.getMessage());
                     // Now we go back to listening for stuff from the server...
                 }
             }
         } catch (Exception e) {
             // Do nothing.
+        	GUIMain.log(e.getMessage());
         }
 
         // If we reach this point, then we must have disconnected.
@@ -130,9 +151,9 @@ public class InputThread extends Thread {
         }
 
         if (!_disposed) {
-            _bot.log("*** Disconnected.");
+        	connection.getBot().log("*** Disconnected.");
             _isConnected = false;
-            _bot.getMessageHandler().onDisconnect();
+            connection.getBot().getMessageHandler().onDisconnect();
         }
 
     }
@@ -151,6 +172,7 @@ public class InputThread extends Thread {
     }
 
     private PircBot _bot = null;
+    private PircBotConnection connection = null;
     private Socket _socket = null;
     private BufferedReader _breader = null;
     private boolean _isConnected = true;

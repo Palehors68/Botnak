@@ -10,17 +10,21 @@ import java.util.Collections;
  * Created to cleanup the horrendous HashMap that was the commandMap in GUIMain.
  */
 public class Command {
-
     private Timer delayTimer;
     private String trigger;
     private StringArray contents;
     private ArrayList<String> arguments;
 
-    public Command(String name, String... contents) {
+    
+    public Command(String name, int delay, String... contents) {
         arguments = new ArrayList<>();
         this.contents = new StringArray(contents);
         trigger = name;
-        delayTimer = new Timer(5000);
+        delayTimer = new Timer(delay);
+    }
+    
+    public Command(String name, String... contents){
+    	this(name, 5000, contents);
     }
 
     public String getTrigger() {
@@ -41,6 +45,10 @@ public class Command {
 
     public void addArguments(String... argumentsToAdd) {
         Collections.addAll(arguments, argumentsToAdd);
+    }
+    
+    public void setContents(String... contents){
+    	this.contents = new StringArray(contents);
     }
 
     public StringArray buildMessage(StringArray source, String[] definedArguments) {
@@ -77,6 +85,11 @@ public class Command {
     public Timer getDelayTimer() {
         return delayTimer;
     }
+    
+    public void setDelayTimer(int seconds){
+    	this.delayTimer = new Timer(seconds * 1000);
+    	this.delayTimer.setEndIn(1);
+    }
 
     @Override
     public boolean equals(Object other) {
@@ -88,4 +101,6 @@ public class Command {
         }
         return false;
     }
+    
+    
 }

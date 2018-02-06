@@ -21,6 +21,7 @@ public class ConsoleCommand {
     public String[] certainPermission;
     public int classPermission;
     public String trigger;
+    private final String helpText;
 
     public enum Action { //one for each
         ADD_FACE,
@@ -68,7 +69,21 @@ public class ConsoleCommand {
         SEE_OR_SET_VOLUME,
         ADD_QUOTE,
         REMOVE_ALL_QUOTES,
-        GET_QUOTE
+        REMOVE_QUOTE,
+        GET_QUOTE,
+        DAMPE_RACE,
+        JUDGE_RACE,
+        WHISPER,
+        TALK,
+        WR,
+        HOST_USER,
+        THROTTLE,
+        THROTTLEBOT,
+        SET_GAME,
+        CLEAR_GAME,
+        CAT,
+        HELP,
+        FOLLOWAGE
 
     }
 
@@ -81,10 +96,16 @@ public class ConsoleCommand {
      * @param certainPermission The certain users able to use the command.
      */
     public ConsoleCommand(String trigger, Action act, int classPerm, String[] certainPermission) {
-        action = act;
+        this(trigger, act, classPerm, certainPermission, "");
+    }
+    
+    public ConsoleCommand(String trigger, Action act, int classPerm, String[] certainPermission, String helpText){
+    	action = act;
         this.trigger = trigger;
         classPermission = classPerm;
         this.certainPermission = certainPermission;
+        this.helpText = helpText;
+        
     }
 
     public Action getAction() {
@@ -109,5 +130,15 @@ public class ConsoleCommand {
 
     public void setCertainPermission(String... newPerm) {
         certainPermission = newPerm;
+    }
+    
+    public String getHelpText(){
+    	return helpText;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+    	if (!(o instanceof ConsoleCommand)) return false;
+    	return trigger.equalsIgnoreCase( ((ConsoleCommand) o).getTrigger());
     }
 }
