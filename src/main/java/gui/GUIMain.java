@@ -63,7 +63,7 @@ public class GUIMain extends JFrame {
     public static GUISettings settings = null;
     public static GUIStreams streams = null;
     public static GUIEmotes emotes = null;
-    public static GUIVote voteGUI = null;
+    public static GUIVotePHB voteGUI = null;
     public static GUIAbout aboutGUI = null;
     public static GUIStatus statusGUI = null;
     public static GUITextCommandEditor textEditorGUI = null;
@@ -420,7 +420,7 @@ public class GUIMain extends JFrame {
     }
 
     private void startVoteOptionActionPerformed() {
-    		voteGUI = new GUIVote();
+    		voteGUI = new GUIVotePHB();
     		voteGUI.setVisible(true);	
     }
 
