@@ -1,6 +1,6 @@
 package util.settings;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.Donor;
 import irc.message.Message;
 import irc.message.MessageQueue;

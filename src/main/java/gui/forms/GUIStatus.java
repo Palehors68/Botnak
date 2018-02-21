@@ -1,6 +1,6 @@
-package gui;
+package gui.forms;
 
-import irc.account.Oauth;
+import irc.account.OAuth;
 import util.APIRequests;
 import util.Response;
 
@@ -21,7 +21,7 @@ public class GUIStatus extends JFrame {
     }
 
     private void saveButtonActionPerformed() {
-        Oauth key = GUIMain.currentSettings.accountManager.getUserAccount().getKey();
+        OAuth key = GUIMain.currentSettings.accountManager.getUserAccount().getKey();
         Response r = APIRequests.Twitch.setStatusOfStream(key.getKey(), "gocnak", gameText.isEnabled() ? gameText.getText() : "", titleText.getText());
     }
 

@@ -1,5 +1,7 @@
 package gui;
 
+import gui.forms.GUIAuthorizeAccount;
+import gui.forms.GUIMain;
 import util.Timer;
 
 import java.io.BufferedReader;
@@ -15,10 +17,10 @@ import java.net.Socket;
  */
 public class TokenListener extends Thread {
 
-    private AuthorizeAccountGUI field;
+    private GUIAuthorizeAccount field;
     private Timer timeoutTimer;
 
-    public TokenListener(AuthorizeAccountGUI field) {
+    public TokenListener(GUIAuthorizeAccount field) {
         timeoutTimer = new Timer(1000 * 60);
         this.field = field;
     }

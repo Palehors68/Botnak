@@ -1,5 +1,5 @@
-import gui.GUIMain;
-import gui.GUIUpdate;
+import gui.forms.GUIMain;
+import gui.forms.GUIUpdate;
 import util.settings.Settings;
 
 import javax.swing.*;

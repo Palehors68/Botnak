@@ -1,7 +1,7 @@
 package gui.listeners;
 
-import gui.GUIMain;
-import lib.pircbot.org.jibble.pircbot.User;
+import gui.forms.GUIMain;
+import lib.pircbot.User;
 
 import javax.swing.*;
 import javax.swing.text.BadLocationException;

@@ -1,7 +1,10 @@
-package gui;
+package gui.forms;
 
 import face.FaceManager;
 import face.Icons;
+import gui.ChatPane;
+import gui.CombinedChatPane;
+import gui.DraggableTabbedPane;
 import gui.listeners.ListenerName;
 import gui.listeners.ListenerURL;
 import gui.listeners.ListenerUserChat;
@@ -10,7 +13,7 @@ import irc.IRCBot;
 import irc.IRCViewer;
 import irc.message.Message;
 import irc.message.MessageQueue;
-import lib.pircbot.org.jibble.pircbot.Channel;
+import lib.pircbot.Channel;
 import sound.SoundEngine;
 import thread.TabPulse;
 import thread.ThreadEngine;
@@ -67,7 +70,7 @@ public class GUIMain extends JFrame {
     public static GUIAbout aboutGUI = null;
     public static GUIStatus statusGUI = null;
     public static GUITextCommandEditor textEditorGUI = null;
-    public static AuthorizeAccountGUI accountGUI = null;
+    public static GUIAuthorizeAccount accountGUI = null;
 
     public static boolean shutDown = false;
     

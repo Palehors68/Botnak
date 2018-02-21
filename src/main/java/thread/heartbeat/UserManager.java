@@ -1,11 +1,11 @@
 package thread.heartbeat;
 
-import gui.GUIMain;
-import gui.GUIViewerList;
+import gui.forms.GUIMain;
+import gui.forms.GUIViewerList;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
-import lib.pircbot.org.jibble.pircbot.ChannelManager;
-import lib.pircbot.org.jibble.pircbot.User;
+import lib.pircbot.ChannelManager;
+import lib.pircbot.User;
 import util.Timer;
 import util.Utils;
 

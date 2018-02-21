@@ -2,8 +2,8 @@ package gui.listeners;
 
 import gui.ChatPane;
 import gui.CombinedChatPane;
-import gui.GUIMain;
-import lib.pircbot.org.jibble.pircbot.User;
+import gui.forms.GUIMain;
+import lib.pircbot.User;
 import util.Utils;
 
 import javax.swing.*;

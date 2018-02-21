@@ -2,8 +2,8 @@ package irc.message;
 
 import gui.ChatPane;
 import gui.CombinedChatPane;
-import gui.GUIMain;
-import lib.pircbot.org.jibble.pircbot.Queue;
+import gui.forms.GUIMain;
+import lib.pircbot.Queue;
 import sound.SoundEngine;
 import util.settings.Settings;
 

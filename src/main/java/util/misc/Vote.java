@@ -1,6 +1,6 @@
 package util.misc;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import util.Timer;
 import util.Utils;
 

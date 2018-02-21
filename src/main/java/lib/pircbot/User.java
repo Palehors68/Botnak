@@ -11,10 +11,10 @@ found at http://www.jibble.org/licenses/
 
 */
 
-package lib.pircbot.org.jibble.pircbot;
+package lib.pircbot;
 
 import face.IconEnum;
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.Donor;
 
 import java.awt.*;

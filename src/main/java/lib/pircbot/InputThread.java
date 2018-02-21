@@ -12,9 +12,10 @@ found at http://www.jibble.org/licenses/
 */
 
 
-package lib.pircbot.org.jibble.pircbot;
+package lib.pircbot;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
+import lib.pircbot.PircBotConnection;
 
 import java.io.BufferedReader;
 import java.io.InterruptedIOException;
@@ -22,8 +23,6 @@ import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.Socket;
 import java.util.StringTokenizer;
-
-import lib.pircbot.org.jibble.pircbot.PircBotConnection;
 
 /**
  * A Thread which reads lines from the IRC server.  It then

@@ -1,4 +1,4 @@
-package gui;
+package gui.forms;
 
 import util.Constants;
 import util.Utils;

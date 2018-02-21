@@ -2,11 +2,11 @@ package util;
 
 import face.FaceManager;
 import face.SubscriberIcon;
-import gui.GUIMain;
-import irc.account.Oauth;
+import gui.forms.GUIMain;
+import irc.account.OAuth;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
-import lib.pircbot.org.jibble.pircbot.Channel;
+import lib.pircbot.Channel;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -298,7 +298,7 @@ public class APIRequests {
 		 * @param isTitle If the change is for the title or game.
 		 * @return The response Botnak has for the method.
 		 */
-		public static Response setStreamStatus(Oauth key, String channel, String message, boolean isTitle) {
+		public static Response setStreamStatus(OAuth key, String channel, String message, boolean isTitle) {
 			Response toReturn = new Response();
 			if (key.canSetTitle()) {
 				String add = isTitle ? "title" : "game";

@@ -1,13 +1,13 @@
 package irc;
 
 import face.FaceManager;
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.account.Task;
 import irc.message.Message;
 import irc.message.MessageHandler;
 import irc.message.MessageQueue;
-import lib.pircbot.org.jibble.pircbot.PircBot;
-import lib.pircbot.org.jibble.pircbot.User;
+import lib.pircbot.PircBot;
+import lib.pircbot.User;
 import thread.heartbeat.BanQueue;
 import util.Utils;
 import util.settings.Settings;

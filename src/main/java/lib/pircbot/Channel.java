@@ -1,6 +1,6 @@
-package lib.pircbot.org.jibble.pircbot;
+package lib.pircbot;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 
 import java.io.BufferedReader;
 import java.io.File;

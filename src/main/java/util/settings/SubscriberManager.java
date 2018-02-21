@@ -1,12 +1,12 @@
 package util.settings;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.Subscriber;
 import irc.message.Message;
 import irc.message.MessageQueue;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
-import lib.pircbot.org.jibble.pircbot.User;
+import lib.pircbot.User;
 import sound.SoundEngine;
 import util.misc.Donation;
 

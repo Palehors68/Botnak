@@ -12,11 +12,12 @@ found at http://www.jibble.org/licenses/
 */
 
 
-package lib.pircbot.org.jibble.pircbot;
+package lib.pircbot;
 
 import face.FaceManager;
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.message.MessageHandler;
+import lib.pircbot.PircBotConnection;
 import util.Constants;
 
 import java.awt.*;
@@ -26,8 +27,6 @@ import java.net.Socket;
 import java.util.StringTokenizer;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import lib.pircbot.org.jibble.pircbot.PircBotConnection;
 
 /**
  * PircBot is a Java framework for writing IRC bots quickly and easily.

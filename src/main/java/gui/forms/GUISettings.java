@@ -1,7 +1,8 @@
-package gui;
+package gui.forms;
 
+import gui.JFontChooser;
 import irc.account.Account;
-import irc.account.Oauth;
+import irc.account.OAuth;
 import irc.account.Task;
 import lib.scalr.Scalr;
 import sound.Sound;
@@ -35,7 +36,7 @@ public class GUISettings extends JFrame {
     private static String lastSoundDir = "";
 
     GUISounds_2 s2;
-    AuthorizeAccountGUI mainAccGUI;
+    GUIAuthorizeAccount mainAccGUI;
 
     public GUISettings() {
         initComponents();
@@ -284,7 +285,7 @@ public class GUISettings extends JFrame {
 
     public void userLoginButtonActionPerformed() {
         if (GUIMain.viewer == null) {
-            if (mainAccGUI == null) mainAccGUI = new AuthorizeAccountGUI();
+            if (mainAccGUI == null) mainAccGUI = new GUIAuthorizeAccount();
             mainAccGUI.setVisible(true);
         }
     }
@@ -302,7 +303,7 @@ public class GUISettings extends JFrame {
                                 "Password Needs Oauth", JOptionPane.ERROR_MESSAGE);
                         botPass.setText("");
                     } else {
-                        GUIMain.currentSettings.accountManager.setBotAccount(new Account(botus, new Oauth(botpass, false, false)));
+                        GUIMain.currentSettings.accountManager.setBotAccount(new Account(botus, new OAuth(botpass, false, false)));
                         GUIMain.currentSettings.accountManager.addTask(new Task(null, Task.Type.CREATE_BOT_ACCOUNT, null));
                     }
                 }

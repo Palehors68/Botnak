@@ -1,7 +1,7 @@
 package gui.listeners;
 
 import util.Utils;
-import gui.GUIMain;
+import gui.forms.GUIMain;
 
 import javax.swing.*;
 import javax.swing.event.ChangeEvent;

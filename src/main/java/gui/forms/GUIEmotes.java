@@ -1,4 +1,4 @@
-package gui;
+package gui.forms;
 
 import javax.swing.*;
 
@@ -23,8 +23,9 @@ import java.util.SortedSet;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.net.MalformedURLException;
-import lib.pircbot.org.jibble.pircbot.User;
+
 import lib.JSON.JSONObject;
+import lib.pircbot.User;
 
 public class GUIEmotes extends JFrame {
 

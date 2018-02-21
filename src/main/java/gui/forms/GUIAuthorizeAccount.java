@@ -1,7 +1,9 @@
-package gui;
+package gui.forms;
+
+import gui.TokenListener;
 
 import irc.account.Account;
-import irc.account.Oauth;
+import irc.account.OAuth;
 import irc.account.Task;
 import util.Utils;
 
@@ -15,8 +17,8 @@ import java.awt.*;
  *
  * @author Nick K
  */
-public class AuthorizeAccountGUI extends JFrame {
-    public AuthorizeAccountGUI() {
+public class GUIAuthorizeAccount extends JFrame {
+    public GUIAuthorizeAccount() {
         initComponents();
         if (GUIMain.currentSettings.accountManager.getUserAccount() != null) {
             accountNameField.setText(GUIMain.currentSettings.accountManager.getUserAccount().getName());
@@ -47,7 +49,7 @@ public class AuthorizeAccountGUI extends JFrame {
             if (accountNameField.getText().length() > 0 && oAuthField.getPassword().length > 5) {
                 GUIMain.currentSettings.accountManager.setUserAccount(
                         new Account(accountNameField.getText().toLowerCase(),
-                                new Oauth("oauth:" + new String(oAuthField.getPassword()), boxEditStream.isSelected(), boxCommercial.isSelected())));
+                                new OAuth("oauth:" + new String(oAuthField.getPassword()), boxEditStream.isSelected(), boxCommercial.isSelected())));
                 GUIMain.currentSettings.accountManager.addTask(new Task(null, Task.Type.CREATE_VIEWER_ACCOUNT, null));
             }
         }

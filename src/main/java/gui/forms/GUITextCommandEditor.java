@@ -1,8 +1,7 @@
-package gui;
+package gui.forms;
 
 import util.Utils;
 import util.comm.Command;
-import lib.pircbot.org.jibble.pircbot.Channel;
 
 import javax.swing.*;
 
@@ -12,6 +11,8 @@ import java.util.concurrent.CopyOnWriteArraySet;
 
 import javax.swing.GroupLayout.Alignment;
 import javax.swing.LayoutStyle.ComponentPlacement;
+
+import lib.pircbot.Channel;
 
 /**
  * @author Nick K

@@ -2,11 +2,11 @@ package util;
 
 import gui.ChatPane;
 import gui.CombinedChatPane;
-import gui.GUIMain;
-import lib.pircbot.org.jibble.pircbot.User;
+import gui.forms.GUIMain;
+import lib.pircbot.Channel;
+import lib.pircbot.User;
 import util.comm.Command;
 import util.comm.ConsoleCommand;
-import lib.pircbot.org.jibble.pircbot.Channel;
 
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;

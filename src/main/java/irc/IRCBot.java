@@ -2,15 +2,15 @@ package irc;
 
 import face.Face;
 import face.FaceManager;
-import gui.GUIMain;
-import irc.account.Oauth;
+import gui.forms.GUIMain;
+import irc.account.OAuth;
 import irc.account.Task;
 import irc.message.Message;
 import irc.message.MessageHandler;
 import irc.message.MessageQueue;
-import lib.pircbot.org.jibble.pircbot.PircBot;
-import lib.pircbot.org.jibble.pircbot.User;
-import lib.pircbot.org.jibble.pircbot.Channel;
+import lib.pircbot.Channel;
+import lib.pircbot.PircBot;
+import lib.pircbot.User;
 import sound.Sound;
 import sound.SoundEngine;
 import thread.ThreadEngine;
@@ -169,7 +169,7 @@ public class IRCBot extends MessageHandler {
                 }
             }
 
-            Oauth key = GUIMain.currentSettings.accountManager.getUserAccount().getKey();
+            OAuth key = GUIMain.currentSettings.accountManager.getUserAccount().getKey();
             String[] split = message.split(" ");
 
             //URL Checking

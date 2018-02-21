@@ -1,10 +1,10 @@
 package face;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
+import lib.pircbot.User;
 import lib.JSON.JSONException;
-import lib.pircbot.org.jibble.pircbot.User;
 import lib.scalr.Scalr;
 import thread.ThreadEngine;
 import util.Response;

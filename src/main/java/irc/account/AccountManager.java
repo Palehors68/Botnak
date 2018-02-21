@@ -1,11 +1,12 @@
 package irc.account;
 
-import gui.GUIMain;
+import gui.forms.GUIMain;
 import irc.IRCBot;
 import irc.IRCViewer;
-import lib.pircbot.org.jibble.pircbot.PircBot;
-import lib.pircbot.org.jibble.pircbot.PircBotConnection;
-import lib.pircbot.org.jibble.pircbot.Queue;
+import lib.pircbot.PircBot;
+import lib.pircbot.PircBotConnection;
+import lib.pircbot.Queue;
+
 import java.util.Timer;
 import util.settings.Settings;
 

@@ -6,9 +6,9 @@ package irc.account;
 public class Account {
 
     private String name;
-    private Oauth key;
+    private OAuth key;
 
-    public Account(String name, Oauth key) {
+    public Account(String name, OAuth key) {
         this.name = name;
         this.key = key;
     }
@@ -17,7 +17,7 @@ public class Account {
         return name;
     }
 
-    public Oauth getKey() {
+    public OAuth getKey() {
         return key;
     }
 }

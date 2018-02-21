@@ -1,4 +1,7 @@
-package gui;
+package gui.forms;
+
+import gui.ChatPane;
+import gui.CombinedChatPane;
 
 import javax.swing.*;
 import java.awt.*;
