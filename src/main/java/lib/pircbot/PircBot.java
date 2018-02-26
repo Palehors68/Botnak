@@ -201,7 +201,7 @@ public class PircBot {
     public void sendMessage(String target, String message) {
     	currentChannel = Settings.channelManager.getChannel(target);
     	if (message.startsWith("!asbot")){
-    		handleLine(":" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :" + message);
+    		handleLine("@user-id=" + getUserID() + " :" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :" + message);
     		return;
     	} else if (message.startsWith("/w")) {
             String[] split = message.split(" ", 3);
@@ -289,6 +289,8 @@ public class PircBot {
             {
                 long senderID = Long.parseLong(tagsMap.get("user-id"));
                 senderUser = getChannelManager().getUser(senderID, true);
+                System.out.println(GUIMain.bot.getBot().getUserID());
+                System.out.println(GUIMain.viewer.getViewer().getUserID());
             }
 
             if (line.contains("GLOBALUSERSTATE") && senderUser != null)
