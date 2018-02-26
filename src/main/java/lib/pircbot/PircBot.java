@@ -289,8 +289,6 @@ public class PircBot {
             {
                 long senderID = Long.parseLong(tagsMap.get("user-id"));
                 senderUser = getChannelManager().getUser(senderID, true);
-                System.out.println(GUIMain.bot.getBot().getUserID());
-                System.out.println(GUIMain.viewer.getViewer().getUserID());
             }
 
             if (line.contains("GLOBALUSERSTATE") && senderUser != null)

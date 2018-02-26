@@ -128,6 +128,10 @@ public class IRCBot extends MessageHandler {
 			String sender = senderUser.getLowerNick();
 			Channel ch = Settings.channelManager.getChannel(channel);
 
+			//races
+			if (ch.getRace() != null && !ch.getRace().votingDone()){
+				ch.getRace().addGuess(sender, message);
+			}
 			if (!channel.contains(botnakUserName.toLowerCase())) {//in other channels
 				int replyType = Settings.botReplyType.getValue();
 				if (replyType == 0) return;
