@@ -598,7 +598,7 @@ public class APIRequests {
 			try{
 				URL request = new URL("https://api.twitch.tv/helix/users/follows?from_id=" 
 						+ u.getUserID() 
-						+ "&to_id=" + Settings.channelManager.getUser(ch.getUserName(), false).getUserID());
+						+ "&to_id=" + getTwitchUserIDByLoginName(ch.getUserName()));
 				connection = (HttpURLConnection) request.openConnection();
 				connection.setRequestProperty("Client-ID", CLIENT_ID);
 				String line = Utils.createAndParseBufferedReader(connection.getInputStream());
@@ -625,6 +625,30 @@ public class APIRequests {
 			}
 			return toReturn;
         }
+        
+        public static String getTwitchUserIDByLoginName(String login){
+			HttpURLConnection connection;
+			login = login.replace("#", "");
+			try{
+				//				URL request = new URL("https://api.twitch.tv/helix/users?login=" + login);
+				URL request = new URL("https://api.twitch.tv/helix/users?login=" + login);
+				connection = (HttpURLConnection) request.openConnection();
+				connection.setRequestProperty("Client-ID", CLIENT_ID);
+				String line = Utils.createAndParseBufferedReader(connection.getInputStream());
+				if (!line.isEmpty()){
+					JSONObject init = new JSONObject(line);
+					if (init.getJSONArray("data").length() > 0){
+						return init.getJSONArray("data").getJSONObject(0).getString("id");
+					} else {
+						return null;
+					}
+				}
+				connection.disconnect();
+			} catch (Exception e) {
+				return null;
+			}
+			return null;
+		}
         
         public static Response getTwitchClipInfo(String URL){
 			Response toReturn = new Response();

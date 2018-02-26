@@ -700,13 +700,14 @@ public class Settings {
             for (Command next : GUIMain.commandSet) {
                 if (next != null) {
                     String name = next.getTrigger();
+                    String throttle = next.getDelayTimer().period + "";
                     String[] contents = next.getMessage().data;
                     StringBuilder sb = new StringBuilder();
                     for (int i = 0; i < contents.length; i++) {
                         sb.append(contents[i]);
                         if (i != (contents.length - 1)) sb.append("]");
                     }
-                    pw.print(name + "[" + sb.toString());
+                    pw.print(name + "[" + throttle + "[" + sb.toString());
                     if (next.hasArguments()) {
                         pw.print("[");
                         for (int i = 0; i < next.countArguments(); i++) {
