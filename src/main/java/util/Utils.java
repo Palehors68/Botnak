@@ -609,7 +609,7 @@ public class Utils {
     public static ConsoleCommand getConsoleCommand(String key, String channel, User u) {
         String master = Settings.accountManager.getUserAccount().getName();
         if (!channel.contains(master)) {
-        	if (!u.getLowerNick().equalsIgnoreCase(master)) return null;
+        	if (!u.getLowerNick().equalsIgnoreCase(master) && Settings.botReplyType.getValue() < 2) return null;
         }
         if (u != null) {
             for (ConsoleCommand c : GUIMain.conCommands) {
