@@ -896,7 +896,7 @@ public class GUIMain extends JFrame {
 
 					//---- manageTextCommandsOption ----
 					manageTextCommandsOption.setText("Manage Text Commands...");
-					manageTextCommandsOption.setEnabled(false);//TODO
+					manageTextCommandsOption.setEnabled(true);//TODO
 					manageTextCommandsOption.addActionListener(e -> manageTextCommandsOptionActionPerformed(null));
 					toolsMenu.add(manageTextCommandsOption);
 					toolsMenu.addSeparator();

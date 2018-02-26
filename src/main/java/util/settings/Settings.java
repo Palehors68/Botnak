@@ -679,10 +679,18 @@ public class Settings {
         @Override
         public void handleLineLoad(String line) {
             String[] split = line.split("\\[");
-            String[] contents = split[1].split("]");
-            Command c = new Command(split[0], contents);
-            if (split.length > 2) {
-                c.addArguments(split[2].split(","));
+            String[] contents = split[2].split("]");
+            int delay;
+            try {
+            	delay = Integer.parseInt(split[1]);
+            	if (delay > 60000 || delay < 1000) delay = 5000;
+            } catch (Exception e) {
+            	delay = 5000;
+            }
+            
+            Command c = new Command(split[0], delay, contents);
+            if (split.length > 3) {
+                c.addArguments(split[3].split(","));
             }
             GUIMain.commandSet.add(c);
         }
