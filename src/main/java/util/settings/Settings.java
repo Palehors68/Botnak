@@ -54,7 +54,7 @@ public class Settings {
 
     //directories
     public static File defaultDir = new File(FileSystemView.getFileSystemView().getDefaultDirectory().getAbsolutePath()
-            + File.separator + "Botnak");
+            + File.separator + "Palehorsbot");
     public static File tmpDir = new File(defaultDir + File.separator + "_temp");
     public static File faceDir = new File(defaultDir + File.separator + "Faces");
     public static File nameFaceDir = new File(defaultDir + File.separator + "NameFaces");
@@ -66,6 +66,7 @@ public class Settings {
     public static File logDir = new File(defaultDir + File.separator + "Logs");
     //files
     public static File accountsFile = new File(defaultDir + File.separator + "acc.ini");
+    //public static File APIKeysFile = new File(defaultDir + File.separator + "APIKeys.ini");
     public static File tabsFile = new File(defaultDir + File.separator + "tabs.txt");
     public static File soundsFile = new File(defaultDir + File.separator + "sounds.txt");
     public static File faceFile = new File(defaultDir + File.separator + "faces.txt");
@@ -80,6 +81,7 @@ public class Settings {
     public static File donorsFile = new File(defaultDir + File.separator + "donors.txt");
     public static File donationsFile = new File(defaultDir + File.separator + "donations.txt");
     public static File subsFile = new File(defaultDir + File.separator + "subs.txt");
+    public static File quotesFile = new File(defaultDir + File.separator + "quotes.txt");
 
     //appearance
     public static String lookAndFeel = "lib.jtattoo.com.jtattoo.plaf.hifi.HiFiLookAndFeel";
@@ -105,6 +107,7 @@ public class Settings {
     public static Setting<Boolean> botShowPreviousSubSound = new Setting<>(""/*TODO*/, true, Boolean.class);
     public static Setting<Boolean> botShowPreviousDonSound = new Setting<>(""/*TODO*/, true, Boolean.class);
     public static Setting<Boolean> botUnshortenURLs = new Setting<>(""/*TODO*/, true, Boolean.class);
+    public static Setting<Boolean> botWhisperMode = new Setting<>("",false,Boolean.class);
 
     public static Setting<Boolean> ffzFacesEnable = new Setting<>("", true, Boolean.class);
     public static Setting<Boolean> ffzFacesUseAll = new Setting<>("", false, Boolean.class);
@@ -155,8 +158,16 @@ public class Settings {
 
     public static Setting<Double> donorCutoff = new Setting<>("DonorCutoff", 2.50, Double.class);
     public static Setting<Integer> cheerDonorCutoff = new Setting<>("CheerDonorCutoff", 250, Integer.class);
+    
+    //API Keys
+    public static Setting<String> youTubeKey = new Setting<>("YouTubeKey", "", String.class);
+    public static Setting<String> twitterKey = new Setting<>("TwitterKey", "", String.class);
+    public static Setting<String> twitterSecret = new Setting<>("TwitterSecret", "", String.class);
+    public static Setting<String> unshortenitKey = new Setting<>("UnShortenItKey", "", String.class);
+    public static Setting<String> twitchClientID = new Setting<>("TwitchClientID", "", String.class);
 
     private static ArrayList<Setting> settings;
+    private static ArrayList<Setting> keys;
 
     public static Window WINDOW = new Window();
     public static LookAndFeel LAF = new LookAndFeel();
@@ -170,6 +181,7 @@ public class Settings {
     public static TwitchFaces TWITCH_FACES = new TwitchFaces();
     public static Faces FACES = new Faces();
     public static Keywords KEYWORDS = new Keywords();
+    public static Quotes QUOTES = new Quotes();
 
     public static void init() {
         long time = System.currentTimeMillis();
@@ -233,6 +245,11 @@ public class Settings {
             GUIMain.log("Loading defaults...");
             loadPropData(1);
         }
+//        if (Utils.areFilesGood(APIKeysFile.getAbsolutePath())) {
+//        	GUIMain.log("Loading API Keys...");
+//        	loadPropData(2);
+//        }
+        
         if (Utils.areFilesGood(tabsFile.getAbsolutePath()) && accountManager.getUserAccount() != null) {
             GUIMain.log("Loading tabs...");
             TAB_STATE.load();
@@ -262,6 +279,11 @@ public class Settings {
                 doLoadDonationSounds();
             }
         }
+        if (Utils.areFilesGood(quotesFile.getAbsolutePath())){
+        	GUIMain.log("Loading quotes...");
+        	QUOTES.load();
+        	GUIMain.log("Loaded quotes!");
+        }
         if (Utils.areFilesGood(userColFile.getAbsolutePath())) {
             GUIMain.log("Loading user colors...");
             USER_COLORS.load();
@@ -277,7 +299,7 @@ public class Settings {
             DONATIONS.load();//these are stored locally
             if (Donations.mostRecent != null) {
                 donationManager.setLastDonation(Donations.mostRecent);
-                GUIMain.log(String.format("Most recent donation: %s for %s", Donations.mostRecent.getFromWho(),
+                GUIMain.log(String.format("Most recent donation: %s for %s", Donations.mostRecent.getFromWhom(),
                         DonationManager.getCurrencyFormat().format(Donations.mostRecent.getAmount())));
             }
             if (!Donations.donations.isEmpty()) {
@@ -389,6 +411,7 @@ public class Settings {
         if (!donationManager.getDonors().isEmpty()) DONORS.save();
         if (!donationManager.getDonations().isEmpty()) DONATIONS.save();
         if (!subscriberManager.getSubscribers().isEmpty()) SUBSCRIBERS.save();
+        if (!QUOTES.quotes.isEmpty()) QUOTES.save();
         saveConCommands();
     }
 
@@ -446,6 +469,16 @@ public class Settings {
                 GUIMain.log(e);
             }
         }
+//        if (type ==2) {//API Keys
+//        	try{
+//        		p.load(new FileInputStream(APIKeysFile));
+//        		settings.forEach(s -> s.load(p));
+//        		GUIMain.log("API Keys Loaded");
+//        		
+//        	} catch (Exception e) {
+//        		GUIMain.log(e);
+//        	}
+//        }
     }
 
     public static void savePropData(int type) {
@@ -478,6 +511,8 @@ public class Settings {
                 writerFile = defaultsFile;
                 detail = "Defaults/Other Settings";
                 break;
+            case 2:
+            	
             default:
                 break;
         }
@@ -492,6 +527,16 @@ public class Settings {
         }
     }
 
+    /**
+     * Quotes
+     */
+    public static void loadQuotes() {
+    	QUOTES.load();
+    }
+    
+    public static void saveQuotes() {
+    	QUOTES.save();
+    }
 
     /**
      * Sounds
@@ -598,9 +643,10 @@ public class Settings {
             try {
                 String[] split = line.split(",");
                 int emoteID = Integer.parseInt(split[0]);
+                int emoteSet = Integer.parseInt(split[3]);
                 TwitchFace tf = new TwitchFace(split[1],
                         new File(twitchFaceDir + File.separator + String.valueOf(emoteID) + ".png").getAbsolutePath(),
-                        Boolean.parseBoolean(split[2]));
+                        Boolean.parseBoolean(split[2]), emoteSet);
                 FaceManager.twitchFaceMap.put(emoteID, tf);
             } catch (Exception e) {
                 GUIMain.log(e);
@@ -612,7 +658,7 @@ public class Settings {
             FaceManager.twitchFaceMap.keySet().stream().filter(s -> s != null && FaceManager.twitchFaceMap.get(s) != null)
                     .forEach(s -> {
                         TwitchFace fa = FaceManager.twitchFaceMap.get(s);
-                        pw.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()));
+                        pw.println(s + "," + fa.getRegex() + "," + Boolean.toString(fa.isEnabled()) + "," + fa.getEmoticonSet());
                     });
         }
 
@@ -737,6 +783,24 @@ public class Settings {
         hardcoded.add(new ConsoleCommand("lastdonationsound", ConsoleCommand.Action.SEE_PREV_SOUND_DON, Permissions.Permission.VIEWER.permValue, null));
         hardcoded.add(new ConsoleCommand("botreply", ConsoleCommand.Action.SEE_OR_SET_REPLY_TYPE, Permissions.Permission.BROADCASTER.permValue, null));
         hardcoded.add(new ConsoleCommand("volume", ConsoleCommand.Action.SEE_OR_SET_VOLUME, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("addquote", ConsoleCommand.Action.ADD_QUOTE, Permissions.Permission.MODERATOR.permValue,null));
+        hardcoded.add(new ConsoleCommand("cat", ConsoleCommand.Action.CAT, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("playnothing", ConsoleCommand.Action.CLEAR_GAME, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("damperace", ConsoleCommand.Action.DAMPE_RACE, Permissions.Permission.MODERATOR.permValue,null));
+        hardcoded.add(new ConsoleCommand("quote", ConsoleCommand.Action.GET_QUOTE, Permissions.Permission.MODERATOR.permValue,null));
+        hardcoded.add(new ConsoleCommand("help", ConsoleCommand.Action.HELP, Permissions.Permission.VIEWER.permValue, null));
+        hardcoded.add(new ConsoleCommand("host", ConsoleCommand.Action.HOST_USER, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("judgerace", ConsoleCommand.Action.JUDGE_RACE, Permissions.Permission.MODERATOR.permValue,null));
+        hardcoded.add(new ConsoleCommand("removeallquotes", ConsoleCommand.Action.REMOVE_ALL_QUOTES, Permissions.Permission.MODERATOR.permValue,null));
+        hardcoded.add(new ConsoleCommand("removequote", ConsoleCommand.Action.REMOVE_QUOTE, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("play", ConsoleCommand.Action.SET_GAME, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("setsubsound", ConsoleCommand.Action.SET_SUB_SOUND, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("talk", ConsoleCommand.Action.TALK, Permissions.Permission.DEVELOPER.permValue, null));
+        hardcoded.add(new ConsoleCommand("throttle", ConsoleCommand.Action.THROTTLE, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("throttlebot", ConsoleCommand.Action.THROTTLEBOT, Permissions.Permission.MODERATOR.permValue, null));
+        hardcoded.add(new ConsoleCommand("whisper", ConsoleCommand.Action.WHISPER, Permissions.Permission.DEVELOPER.permValue, null));
+        hardcoded.add(new ConsoleCommand("wr", ConsoleCommand.Action.WR, Permissions.Permission.VIEWER.permValue, null, "!wr returns the Any% WR of the current game. !wr <game> / <category> searches for the game/category"));
+        hardcoded.add(new ConsoleCommand("followage", ConsoleCommand.Action.FOLLOWAGE, Permissions.Permission.VIEWER.permValue, null));
 
         if (Utils.areFilesGood(ccommandsFile.getAbsolutePath())) {
             try (InputStreamReader isr = new InputStreamReader(ccommandsFile.toURI().toURL().openStream());
@@ -910,6 +974,34 @@ public class Settings {
         public File getFile() {
             return subsFile;
         }
+    }
+    
+    /**
+     * Quotes for every channel
+     * @author wwest
+     * <p>
+     * Save off all the quotes that belong to all channels
+     */
+    
+    private static class Quotes extends AbstractFileSave {
+    	
+    	private static ArrayList<String> quotes = new ArrayList<>();
+    	
+    	@Override
+    	public void handleLineLoad(String line) {
+    		quotes.add(line);
+    	}
+    	    	
+    	@Override
+        public File getFile() {
+            return quotesFile;
+        }
+
+		@Override
+		public void handleLineSave(PrintWriter pw) {
+			quotes.stream().forEach(pw::println);
+		}
+    	
     }
 
 

@@ -20,6 +20,8 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.net.URL;
 import java.util.ArrayList;
+import javax.swing.GroupLayout.Alignment;
+import javax.swing.LayoutStyle.ComponentPlacement;
 
 
 /**
@@ -166,6 +168,12 @@ public class GUISettings extends JFrame {
                 Settings.lookAndFeel = "lib.jtattoo.com.jtattoo.plaf.graphite.GraphiteLookAndFeel";
             }
         }
+        
+        //API Keys
+        Settings.youTubeKey.setValue(youTubeAPIKey.getText());
+        Settings.twitterKey.setValue(twitterAPIKey.getText());
+        Settings.twitterSecret.setValue(twitterAPISecret.getText());
+        Settings.unshortenitKey.setValue(unshortenItAPIKey.getText());
     }
 
     void setIcon(int type) {
@@ -1337,6 +1345,78 @@ public class GUISettings extends JFrame {
         buttonGroup = new ButtonGroup();
         buttonGroup.add(graphiteButton);
         buttonGroup.add(hifiButton);
+        
+        JPanel apiKeysPanel = new JPanel();
+        tabbedPane1.addTab("API Keys", null, apiKeysPanel, null);
+        
+        unshortenItLabel = new JLabel("Unshorten.it API Key");
+        unshortenItLabel.setFont(new Font("Tahoma", Font.BOLD, 14));
+        
+        unshortenItAPIKey = new JTextField();
+        unshortenItAPIKey.setColumns(10);
+        unshortenItAPIKey.setText(Settings.unshortenitKey.getValue());
+        
+        JLabel youTubeLabel = new JLabel("YouTube API Key");
+        youTubeLabel.setFont(new Font("Tahoma", Font.BOLD, 14));
+        
+        youTubeAPIKey = new JTextField();
+        youTubeAPIKey.setColumns(10);
+        youTubeAPIKey.setText(Settings.youTubeKey.getValue());
+        
+        TwitterApiKey = new JLabel("Twitter API Key : API Secret");
+        TwitterApiKey.setFont(new Font("Tahoma", Font.BOLD, 14));
+        
+        twitterAPIKey = new JTextField();
+        twitterAPIKey.setColumns(10);
+        twitterAPIKey.setText(Settings.twitterKey.getValue());
+        
+        twitterAPISecret = new JTextField();
+        twitterAPISecret.setColumns(10);
+        twitterAPISecret.setText(Settings.twitterSecret.getValue());
+        
+        GroupLayout gl_apiKeysPanel = new GroupLayout(apiKeysPanel);
+        gl_apiKeysPanel.setHorizontalGroup(
+        	gl_apiKeysPanel.createParallelGroup(Alignment.LEADING)
+        		.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        			.addGroup(gl_apiKeysPanel.createParallelGroup(Alignment.LEADING)
+        				.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        					.addContainerGap()
+        					.addComponent(unshortenItLabel))
+        				.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        					.addContainerGap()
+        					.addComponent(youTubeLabel))
+        				.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        					.addGap(38)
+        					.addGroup(gl_apiKeysPanel.createParallelGroup(Alignment.TRAILING)
+        						.addComponent(youTubeAPIKey, GroupLayout.PREFERRED_SIZE, 382, GroupLayout.PREFERRED_SIZE)
+        						.addComponent(unshortenItAPIKey, GroupLayout.PREFERRED_SIZE, 382, GroupLayout.PREFERRED_SIZE)
+        						.addComponent(twitterAPIKey, GroupLayout.PREFERRED_SIZE, 382, GroupLayout.PREFERRED_SIZE)
+        						.addComponent(twitterAPISecret, GroupLayout.PREFERRED_SIZE, 382, GroupLayout.PREFERRED_SIZE)))
+        				.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        					.addContainerGap()
+        					.addComponent(TwitterApiKey)))
+        			.addContainerGap(671, Short.MAX_VALUE))
+        );
+        gl_apiKeysPanel.setVerticalGroup(
+        	gl_apiKeysPanel.createParallelGroup(Alignment.LEADING)
+        		.addGroup(gl_apiKeysPanel.createSequentialGroup()
+        			.addGap(23)
+        			.addComponent(unshortenItLabel)
+        			.addPreferredGap(ComponentPlacement.UNRELATED)
+        			.addComponent(unshortenItAPIKey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        			.addGap(33)
+        			.addComponent(youTubeLabel)
+        			.addPreferredGap(ComponentPlacement.UNRELATED)
+        			.addComponent(youTubeAPIKey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        			.addGap(31)
+        			.addComponent(TwitterApiKey)
+        			.addPreferredGap(ComponentPlacement.UNRELATED)
+        			.addComponent(twitterAPIKey, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        			.addPreferredGap(ComponentPlacement.RELATED)
+        			.addComponent(twitterAPISecret, GroupLayout.PREFERRED_SIZE, GroupLayout.DEFAULT_SIZE, GroupLayout.PREFERRED_SIZE)
+        			.addContainerGap(63, Short.MAX_VALUE))
+        );
+        apiKeysPanel.setLayout(gl_apiKeysPanel);
         // JFormDesigner - End of component initialization  //GEN-END:initComponents
     }
 
@@ -1439,6 +1519,12 @@ public class GUISettings extends JFrame {
 
 
     public static String[] filePaths;
+    private JLabel unshortenItLabel;
+        private JTextField unshortenItAPIKey;
+        private JTextField youTubeAPIKey;
+        private JLabel TwitterApiKey;
+        private JTextField twitterAPIKey;
+        private JTextField twitterAPISecret;
 
     class GUISounds_2 extends JFrame {
         public GUISounds_2() {

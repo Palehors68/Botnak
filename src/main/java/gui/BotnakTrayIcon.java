@@ -98,7 +98,7 @@ public class BotnakTrayIcon extends TrayIcon implements ActionListener, ItemList
 
     public void displayDonation(Donation d) {
         displayMessage("New donation! " + DonationManager.getCurrencyFormat().format(d.getAmount())
-                + " from " + d.getFromWho(), d.getNote(), MessageType.INFO);
+                + " from " + d.getFromWhom(), d.getNote(), MessageType.INFO);
     }
 
 

@@ -4,6 +4,7 @@ import gui.ChatPane;
 import gui.CombinedChatPane;
 import gui.forms.GUIMain;
 import gui.forms.GUIViewerList;
+import irc.account.Task;
 import util.Utils;
 import util.settings.Settings;
 
@@ -11,6 +12,7 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.util.List;
 
 /**
  * Created by Nick on 1/18/14.
@@ -79,6 +81,28 @@ public class PaneMenuListener implements ActionListener {
                         pane1.getTextPane().setText(null);
                     });
                 }
+            } else if (text.startsWith("Reconnect ")){
+            	if (pane != null){
+					GUIMain.log("Reconnecting to " + pane.getChannel());
+					Settings.accountManager.addTask(
+							new Task(Settings.accountManager.getBot(), Task.Type.JOIN_CHANNEL, pane.getChannel()));
+					Settings.accountManager.addTask(
+							new Task(Settings.accountManager.getViewer(), Task.Type.JOIN_CHANNEL, pane.getChannel()));
+				} else {
+					CombinedChatPane ccp = Utils.getCombinedChatPane(GUIMain.channelPane.getSelectedIndex());
+					List<String> channels = ccp.getChannels();
+					for (String channel : channels){
+						GUIMain.log("Reconnecting to " + channel);
+						Settings.accountManager.addTask(
+								new Task(Settings.accountManager.getBot(), Task.Type.JOIN_CHANNEL, channel));
+						Settings.accountManager.addTask(
+								new Task(Settings.accountManager.getViewer(), Task.Type.JOIN_CHANNEL, channel));
+
+					}
+				}
+            } else if (text.startsWith("Edit Text Com")){
+            	GUIMain.instance.manageTextCommandsOptionActionPerformed(
+            			Settings.channelManager.getChannel(pane.getChannel()));
             }
             if (source instanceof JCheckBoxMenuItem) {
                 String channel = source.getText();

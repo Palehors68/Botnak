@@ -5,20 +5,35 @@ import gui.forms.GUIMain;
 import irc.account.OAuth;
 import lib.JSON.JSONArray;
 import lib.JSON.JSONObject;
+import lib.pircbot.Channel;
+import lib.pircbot.User;
 import util.settings.Settings;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
+import java.io.InputStreamReader;
+import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLEncoder;
+import java.text.DecimalFormat;
+import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalTime;
 import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Date;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
+import javax.net.ssl.HttpsURLConnection;
 
 /**
  * Created by Nick on 5/22/2015.
@@ -31,7 +46,8 @@ public class APIRequests {
         private static ConcurrentHashMap<String, String> usersIDMap = new ConcurrentHashMap<>();
 
         private static final String TWITCH_API = "https://api.twitch.tv/kraken";
-        private static final String CLIENT_ID = "qw8d3ve921t0n6e3if07l664f1jn1y7";
+        private static final String CLIENT_ID = "5xg0sgb6dymmmmbyqwt1zppij5xxpi";
+        private static final String CLIENT_ID_PARAM = "client_id=" + CLIENT_ID;
 
         public enum TWITCH_API_REQUEST
         {
@@ -575,6 +591,76 @@ public class APIRequests {
 
             return toReturn;
         }
+        
+        public static Response getFollowAge(Channel ch, User u){
+        	Response toReturn = new Response();
+			HttpURLConnection connection;
+			try{
+				URL request = new URL("https://api.twitch.tv/helix/users/follows?from_id=" 
+						+ u.getUserID() 
+						+ "&to_id=" + Settings.channelManager.getUser(ch.getUserName(), false).getUserID());
+				connection = (HttpURLConnection) request.openConnection();
+				connection.setRequestProperty("Client-ID", CLIENT_ID);
+				String line = Utils.createAndParseBufferedReader(connection.getInputStream());
+				connection.disconnect();
+
+				if (!line.isEmpty()){
+					JSONObject init = new JSONObject(line);
+					if (init.getJSONArray("data").length() > 0){
+						String followDate = init.getJSONArray("data").getJSONObject(0).getString("followed_at");
+						Instant instant = Instant.parse(followDate);
+						Date mydate = Date.from(instant);
+						SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy");
+						int diff = 1 + ((int)(Duration.between(instant, Instant.now()).getSeconds()) / 86400);
+						toReturn.setResponseText("You have followed " + ch.getUserName() + 
+								" since " + formatter.format(mydate) +
+								" (" + diff + " days).");
+					} else {
+						toReturn.setResponseText("You don't follow " + ch.getUserName() + "!");
+					}
+				}
+
+			} catch (Exception e) {
+				toReturn.setResponseText("Unable to lookup followage.");
+			}
+			return toReturn;
+        }
+        
+        public static Response getTwitchClipInfo(String URL){
+			Response toReturn = new Response();
+			HttpURLConnection connection;
+			try {
+				String slug = "";
+				Pattern p  = Pattern.compile("clips.twitch.tv/([^&\\?/]+)");
+				Matcher m = p.matcher(URL);
+				if (m.find()) {
+					slug = m.group().split("/")[1];
+				}
+				URL request = new URL(TWITCH_API + "/clips/" + slug + "?" + CLIENT_ID_PARAM);
+				connection= (HttpURLConnection) request.openConnection();
+				connection.setRequestProperty("Accept", "application/vnd.twitchtv.v5+json");
+				String line = Utils.createAndParseBufferedReader(connection.getInputStream());
+				connection.disconnect();
+				if (!line.isEmpty()){
+					JSONObject init = new JSONObject(line);
+					String title = init.getString("title");
+					//					JSONObject channel = init.getJSONObject("channel");
+					String author = init.getJSONObject("broadcaster").getString("display_name");
+					String game = init.getString("game");
+					toReturn.wasSuccessful();
+					toReturn.setResponseText("Linked Twitch Clip: \"" + title + "\" (" + author + " playing " + game + ")");
+				}
+
+
+
+			} catch (Exception e) {
+				toReturn.setResponseText("Failed to parse Twitch clip due to an Exception!");
+			}
+
+
+
+			return toReturn;
+		}
     }
 
     //Current playing song
@@ -686,41 +772,511 @@ public class APIRequests {
         }
     }
 
-    //URL Un-shortening
-    public static class UnshortenIt {
-        /**
-         * Fetches the domain of the shortened URL's un-shortened destination.
-         *
-         * @param shortenedURL The shortened URL string.
-         * @return The appropriate response.
-         */
-        public static Response getUnshortened(String shortenedURL) {
-            Response toReturn = new Response();
-            toReturn.setResponseText("Failed to un-shorten URL! Click with caution!");
-            try {
-                URL request = new URL("http://urlex.org/txt/" + shortenedURL);
-                String line = Utils.createAndParseBufferedReader(request.openStream());
-                if (!line.isEmpty()) {
-                    if (!line.equals(shortenedURL)) {
-                        line = getHost(line).replaceAll("\\.", ",");
-                        toReturn.setResponseText("Linked Shortened URL directs to: " + line + " !");
-                    } else {
-                        toReturn.setResponseText("Invalid shortened URL!");
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-            return toReturn;
-        }
+  //URL Un-shortening
+  	public static class UnshortenIt {
 
-        private static String getHost(String webURL) {
-            String toReturn = webURL;
-            try {
-                URL url = new URL(webURL);
-                toReturn = url.getHost();
-            } catch (Exception ignored) {
-            }
-            return toReturn;
-        }
-    }
+  		/**
+  		 * Fetches the domain of the shortened URL's un-shortened destination.
+  		 *
+  		 * @param shortenedURL The shortened URL string.
+  		 * @return The appropriate response.
+  		 */
+  		public static Response getUnshortened(String shortenedURL) {
+  			String key = Settings.unshortenitKey.getValue();
+  			Response toReturn = new Response();
+  			if (key.equals("")) return toReturn;
+  			toReturn.setResponseText("Failed to un-shorten URL! Click with caution!");
+  			try {
+  				//                URL request = new URL("https://therealurl.appspot.com/?url=" + shortenedURL);
+  				URL request = new URL("http://api.unshorten.it/?shortURL=" + shortenedURL + "&apiKey=" + key);
+  				URLConnection connection = request.openConnection();
+  				connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.11 (KHTML, like Gecko) Chrome/23.0.1271.95 Safari/537.11");
+  				connection.connect();
+  				BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+  				String line = br.readLine();
+  				br.close();
+  				if (line != null) {
+  					if (line.startsWith("error (")){
+  						String error = line.substring(7, 8);
+  						switch (error) {
+  						case "0":
+  							GUIMain.log("unshorten.it API Error: URL passed incorrectly");
+  							break;
+  						case "1":
+  							GUIMain.log("unshorten.it API Error: invalid responseFormat parameter in API call");
+  							break;
+  						case "2":
+  							GUIMain.log("unshorten.it API Error: invalid return parameter in API call");
+  							break;
+  							// case 3 basically means the service couldn't unshorten the link. we just pass back the default message
+  						case "4":
+  							GUIMain.log("unshorten.it API Error: Invalid API Key");
+  							break;
+  						}
+  						return toReturn;
+  					}
+  					if (!line.equals(shortenedURL)) {
+  						String host = getHost(line);
+  						toReturn.setResponseText("Linked Shortened URL directs to: " + host + " !" + line);
+  						toReturn.wasSuccessful();
+  					} else {
+  						toReturn.setResponseText("Invalid shortened URL!");
+  					}
+  				}
+  			} catch (Exception ignored) {
+  				GUIMain.log(ignored.getMessage());
+  			}
+  			return toReturn;
+  		}
+
+  		private static String getHost(String webURL) {
+  			String toReturn = webURL;
+  			try {
+  				URL url = new URL(webURL);
+  				toReturn = url.getHost();
+  			} catch (Exception ignored) {
+  			}
+  			return toReturn;
+  		}
+  	}
+    
+  //Twitter tweet text
+  	public static class Twitter{
+
+  		/**
+  		 * Credit to Martyr2
+  		 * http://www.coderslexicon.com/demo-of-twitter-application-only-oauth-authentication-using-java/
+  		 */
+  		private static String key;
+  		private static String secret;
+  		private static final String oathEndpointURL = "https://api.twitter.com/oauth2/token";
+  		private static final String tweetEndpointURL = "https://api.twitter.com/1.1/statuses/show.json";
+  		private static String bearerToken;
+  		// https://twitter.com/Jodenstone/status/740016789648605184
+
+
+  		static {
+  			key = Settings.twitterKey.getValue();
+  			secret = Settings.twitterSecret.getValue();
+  		}
+  		/**
+  		 * Fetches the text of a tweet. Read only implementation for now
+  		 * 
+  		 * @param tweetLink the link to the tweet
+  		 * @return The text of the tweet
+  		 */
+  		public static Response getTweetText(String tweetLink){
+
+  			Response toReturn = new Response();
+  			toReturn.setResponseText("Failed to load tweet");
+
+  			if (key.equals("") || secret.equals("")) return toReturn;
+
+  			String ID = "";
+  			Pattern p = null;
+  			if (tweetLink.contains("/status/")){
+  				p = Pattern.compile("/status/([^&\\?/]+)");
+  			}
+  			if (p == null){
+  				toReturn.setResponseText("Could not read twitter URL!");
+  				return toReturn;
+  			}
+
+  			Matcher m = p.matcher(tweetLink);
+  			if (m.find()){
+  				ID = m.group(1);
+  			}
+  			try{
+  				String s1 = tweetEndpointURL + "?id=" + ID;
+  				String s2 = fetchTimelineTweet(s1);
+  				JSONObject obj = new JSONObject(s2);
+  				if (obj != null){
+  					String tweet = obj.getString("text");
+  					JSONObject user = obj.getJSONObject("user");
+  					String userName = user.getString("screen_name");
+  					toReturn.setResponseText("Link to tweet: \"" + tweet + "\" by " + userName);
+  					toReturn.wasSuccessful();
+  				}
+
+  			} catch (Exception e){
+  				GUIMain.log(e);
+  			}
+
+  			return toReturn;
+  		}
+
+  		private static String encodeKeys(String key, String secret){
+  			try{
+  				String encodedKey = URLEncoder.encode(key, "UTF-8");
+  				String encodedSecret = URLEncoder.encode(secret, "UTF-8");
+
+  				String fullKey = encodedKey + ":" + encodedSecret;
+  				byte[] encodedBytes = Base64.getEncoder().encode(fullKey.getBytes());
+  				return new String(encodedBytes);
+  			} catch (Exception e) {
+  				return new String();
+  			}
+
+  		}
+
+  		private static String requestBearerToken(String endpointURL) throws IOException{
+  			HttpsURLConnection connection = null;
+  			String encodedCredentials = encodeKeys(key, secret);
+
+  			try{
+  				URL url = new URL(endpointURL);
+  				connection = (HttpsURLConnection) url.openConnection();
+  				connection.setDoOutput(true);
+  				connection.setDoInput(true); 
+  				connection.setRequestMethod("POST"); 
+  				connection.setRequestProperty("Host", "api.twitter.com");
+  				connection.setRequestProperty("User-Agent", "palehorsbot");
+  				connection.setRequestProperty("Authorization", "Basic " + encodedCredentials);
+  				connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded;charset=UTF-8");
+  				connection.setRequestProperty("Content-Length", "29");
+  				//				connection.setRequestProperty("Accept-Encoding", "gzip");
+  				connection.setUseCaches(false);
+
+  				writeRequest(connection, "grant_type=client_credentials");
+
+  				String s3 = readResponse(connection);
+
+  				JSONObject obj = new JSONObject(s3); 
+
+  				if (obj != null){
+  					String tokenType = (String) obj.get("token_type");
+  					String token = (String)obj.get("access_token");
+
+  					return ((tokenType.equals("bearer")) && (token != null)) ? token : "";
+  				} 
+  				return new String();
+
+
+  			} catch (Exception e){
+  				throw new IOException("Invalid endpoint URL specified.", e);
+  			}
+  			finally{
+  				if (connection != null){
+  					connection.disconnect();
+  				}
+  			}
+  		}
+
+  		private static String fetchTimelineTweet(String endpointURL) throws IOException {
+  			HttpsURLConnection connection = null;
+
+
+  			try{
+  				URL url = new URL(endpointURL);
+  				if (bearerToken == null || "".equals(bearerToken)){
+  					bearerToken = requestBearerToken(oathEndpointURL);
+  				}
+  				connection = (HttpsURLConnection) url.openConnection();
+  				connection.setDoOutput(true);
+  				connection.setDoInput(true);
+  				connection.setRequestMethod("GET");
+  				connection.setRequestProperty("Host", "api.twitter.com");
+  				connection.setRequestProperty("User-Agent", "palehorsbot");
+  				connection.setRequestProperty("Authorization", "Bearer " + bearerToken);
+  				connection.setUseCaches(false);
+
+  				return readResponse(connection);
+
+  				//    			return new String();
+  			} catch (Exception e) {
+  				throw new IOException("Invalid endpoint URL specified.", e);
+  			}
+  			finally {
+  				if (connection != null){
+  					connection.disconnect();
+  				}
+  			}
+  		}
+
+  		private static boolean writeRequest(HttpsURLConnection connection, String textBody) {
+  			try {
+  				BufferedWriter wr = new BufferedWriter(new OutputStreamWriter(connection.getOutputStream()));
+  				wr.write(textBody);
+  				wr.flush();
+  				wr.close();
+
+  				return true;
+  			}
+  			catch (IOException e) { return false; }
+  		}
+
+  		private static String readResponse(HttpsURLConnection connection) {
+  			try {
+  				StringBuilder str = new StringBuilder();
+
+  				BufferedReader br = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+  				String line = "";
+  				while((line = br.readLine()) != null) {
+  					str.append(line + System.getProperty("line.separator"));
+  				}
+  				return str.toString();
+  			}
+  			catch (IOException e) { return new String(); }
+  		}
+
+  	}
+    
+    public static class SpeedRun{
+
+
+		private static JSONObject getJSONFromURI(String URI){
+			try{
+				URL url = new URL(URI);
+				String line = Utils.createAndParseBufferedReader(url.openStream());
+				if (line != null){
+					return new JSONObject(line);
+				}
+			} catch (Exception e){
+
+			}
+			return null;
+		}
+
+		private static String getRuntimeFromDouble(double d){
+			String toReturn = "";
+			DecimalFormat df = new DecimalFormat(".###");
+			int primarySec = (int) d;
+			double remainder = d - primarySec;
+			LocalTime duration = LocalTime.ofSecondOfDay(primarySec);
+			toReturn = duration.toString();
+			if (remainder > 0) toReturn = toReturn.concat(df.format(remainder));
+			return toReturn;
+		}
+
+		private static String getUsernameFromURL(String URI){
+			String toReturn = "";
+			if (URI.contains("/guests/")) {
+				String userName = URI.substring(URI.indexOf("/guests/") + 8);
+				if (userName.contains("%28"))
+					userName = userName.substring(userName.indexOf("%28") + 3, userName.indexOf("%29"));
+				return userName;
+			}
+			try{
+				URL playerURL = new URL(URI);
+				String line = Utils.createAndParseBufferedReader(playerURL.openStream());
+				JSONObject player = new JSONObject(line);
+				toReturn = player.getJSONObject("data").getJSONObject("names").getString("international");
+			} catch (Exception e) {
+				GUIMain.log("Unable to get WR player from " + URI);
+				GUIMain.log(e);
+			}
+
+			return toReturn;
+		}
+
+
+		private static String[] getDetailsFromJSONData(JSONObject data){
+			String[] toReturn = new String[10];
+			String delim = "";
+			StringBuilder sb = new StringBuilder();
+			if (data.getJSONObject("data").has("runs")){
+
+				for (int i = 0; i<data.getJSONObject("data").getJSONArray("runs").length(); i++){
+					sb.append(delim).append(getUsernameFromURL(data.getJSONObject("data").getJSONArray("runs").getJSONObject(i).getJSONObject("run").getJSONArray("players").getJSONObject(0).getString("uri")));
+					delim = ", ";
+				}
+				toReturn[1] = sb.toString();
+				toReturn[0] = getRuntimeFromDouble(data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
+				toReturn[4] = data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("category");
+				toReturn[9] = data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
+				toReturn[3] = getCategoryNameFromID(toReturn[4]);
+			} else {
+				for (int i = 0; i<data.getJSONObject("data").getJSONArray("players").length(); i++){
+					sb.append(delim).append(getUsernameFromURL(data.getJSONObject("data").getJSONArray("players").getJSONObject(i).getString("uri")));
+					delim = ", ";
+				}
+				toReturn[0] = getRuntimeFromDouble(data.getJSONObject("data").getJSONObject("times").getDouble("primary_t"));
+				toReturn[1] = sb.toString();
+				toReturn[4] = data.getJSONObject("data").getString("category");
+				toReturn[9] = data.getJSONObject("data").getString("date");
+				toReturn[3] = getCategoryNameFromID(toReturn[4]);
+			}
+			toReturn[2] = getGameNameFromID(data.getJSONObject("data").getString("game"));
+			toReturn[5] = data.getJSONObject("data").getString("game");
+			toReturn[8] = "";
+			return toReturn;
+		}
+
+		private static String getGameNameFromID(String gameID){
+			String URI = "https://www.speedrun.com/api/v1/games/" + gameID;
+			JSONObject gameJ = getJSONFromURI(URI);
+			if (gameJ != null) return gameJ.getJSONObject("data").getJSONObject("names").getString("international");
+			return null;
+		}
+
+		private static String getCategoryNameFromID(String categoryID){
+			String URI = "https://www.speedrun.com/api/v1/categories/" + categoryID;
+			JSONObject categoryJ = getJSONFromURI(URI);
+			if (categoryJ != null) return categoryJ.getJSONObject("data").getString("name");
+			return null;
+		}
+
+		private static String[] getWorldRecord(String game, String category, String vars){
+			String toReturn[] = null;
+			if (category.contains("/")) vars = category.split("/")[1].trim();
+			boolean multi = false;
+			String apiBase = "https://www.speedrun.com/api/v1/";
+			String apiLB = "leaderboards/%GAME%/category/%CAT%?top=1";
+			String apiRecs = "https://www.speedrun.com/api_records.php?game=%GAME%";
+			String apiVars = "categories/%CAT%/variables";
+			String apiLBVarsAppend = "&var-%ID%=%VAR%";
+			try {
+				URL url = new URL(apiBase + apiLB.replace("%GAME%", game).replace("%CAT%", category));
+				BufferedReader br;
+				try{
+					br = new BufferedReader(new InputStreamReader(url.openStream()));
+				} catch (Exception e) {
+					url = new URL(apiRecs.replace("%GAME%", game));
+					br = new BufferedReader(new InputStreamReader(url.openStream()));
+					multi = true;
+				}
+				StringBuilder sb = new StringBuilder();
+				Utils.parseBufferedReader(br, sb, false);
+				if (sb.toString().equals("{}")) return null;
+				if (!multi){
+					toReturn =  getDetailsFromJSONData(new JSONObject(sb.toString()));
+				} else {
+					JSONObject first = new JSONObject(sb.toString());
+					JSONObject multiJ = first.getJSONObject(first.keys().next());
+					Iterator<?> keys = multiJ.keys();
+					String URI = "";
+					double high = 0.0, current = 0.0;
+					while (keys.hasNext()){
+						String key = (String) keys.next();
+						current = Utils.compareStrings(key, category);//Utils.fuzzyScore(key, category);
+						if (current > high){
+							high = current;
+							URI = multiJ.getJSONObject(key).getJSONObject("links").getString("api");
+						}
+					}
+					if (!"".equals(URI)){
+						toReturn = getDetailsFromJSONData(getJSONFromURI(URI));
+					}
+				}
+
+				if (vars != null){
+					String label = "";
+					toReturn[6] = toReturn[7]= toReturn[8] = "";
+					try{
+						String line = Utils.createAndParseBufferedReader(apiBase + apiVars.replace("%CAT%", toReturn[4]));
+						JSONObject varsJ = new JSONObject(line);
+
+						for (int i = 0; i < varsJ.getJSONArray("data").length(); i++) {
+							if (varsJ.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(toReturn[4])) {
+								toReturn[6] = varsJ.getJSONArray("data").getJSONObject(0).getString("id");
+							} else {
+								continue;
+							}
+
+							double high = 0.0, current = 0.0;
+
+							JSONArray valsA = varsJ.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").names();
+							for (int j = 0; j < valsA.length(); j++){
+								label = varsJ.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").getJSONObject(valsA.getString(j)).getString("label");
+								current = Utils.compareStrings(label, vars);
+								if (current > high) {
+									high = current;
+									toReturn[7] = valsA.getString(j);
+									toReturn[8] = " - " + label;
+								}
+							}
+							break;
+						}
+
+						if ( !toReturn[6].equals("") && !toReturn[7].equals("")){							
+							try{
+								label = toReturn[8];
+								url = new URL(apiBase + apiLB.replace("%GAME%", toReturn[5]).replace("%CAT%",toReturn[4]) + apiLBVarsAppend.replace("%ID%", toReturn[6]).replace("%VAR%", toReturn[7]));
+								br = new BufferedReader(new InputStreamReader(url.openStream()));
+								sb = new StringBuilder();
+								Utils.parseBufferedReader(br, sb, false);
+								if (sb.toString().equals("{}")) return toReturn;
+								toReturn = getDetailsFromJSONData(new JSONObject(sb.toString()));
+								toReturn[8] = label;
+							} catch (Exception e) {
+								GUIMain.log(e);
+							}
+
+
+						}
+					} catch (Exception e) {
+						GUIMain.log(e);
+					}
+				}
+
+			} catch (Exception e) {
+				GUIMain.log(e);
+			}
+
+			return toReturn;
+		}
+
+		public static Response processWRRequest(Channel ch, String request){
+			Response toReturn = new Response();
+			String game, cat, name, vars = null;
+
+			if (request.trim().length() <= 3){
+				game = ch.getGameID();
+				if (game == null) {
+					name = game = Twitch.getGameOfStream(ch.getName());
+					if ("".equals(game)) {
+						toReturn.setResponseText("Cannot fetch WR. Set your game in Twitch, or try !play <game>!");
+						return toReturn;
+					}
+					//				} else {
+					//					name = getGameName(game);
+				}
+				cat = ch.hasCategory() ? ch.getGameCategory() : "any";
+			} else {
+				String params = request.trim().substring(request.indexOf(' '));
+				int slash = params.indexOf('/');
+				if (params.contains("/")) {
+					//if (slash > 0){
+					String split[] = params.split("/");
+					//					game = params.substring(0, slash).trim().toLowerCase();
+					game = split[0].trim().toLowerCase();
+					//					cat = params.substring(slash + 1).trim().toLowerCase();
+					cat = split[1].trim().toLowerCase();
+					if (split.length > 2) vars = split[2].trim().toLowerCase();
+
+				} else {
+					game = params.trim().toLowerCase();
+					cat = ch.hasCategory() ? ch.getGameCategory() : "any";
+				}
+				name = game;
+			}
+
+			toReturn.setResponseText("Usage: !wr || !wr <game> / <Optional:category>");
+
+			String details[] = getWorldRecord(game, cat, vars);
+			if (details != null){
+				toReturn.setResponseText("The WR for "  + details[2] + " (" + details[3] + details[8] + ") is " + details[0] + " by " + details[1] + " achieved on " + details[9] + ".");
+				toReturn.wasSuccessful();
+			} else {
+				toReturn.setResponseText("Unable to find WR for " + game + "(" + cat + ").");
+			}
+
+			return toReturn;
+		}
+
+		//		public static String getGameID(String game){
+		//			String gameID;
+		//			String gameKey = aliasMap.get(game);
+		//			gameID = gameIDMap.get(gameKey);
+		//			return gameID;
+		//		}
+
+		//		public static String getGameName(String game){
+		//			String gameName;
+		//			String gameKey = aliasMap.get(game);
+		//			gameName = gameNameMap.get(gameKey);
+		//			return gameName;
+		//
+		//		}
+	}
 }

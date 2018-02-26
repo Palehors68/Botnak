@@ -1,5 +1,6 @@
 package gui.listeners;
 
+import gui.forms.GUIMain;
 import util.Utils;
 
 import javax.swing.*;
@@ -50,6 +51,7 @@ public class TabTitleEditListener extends MouseAdapter implements ChangeListener
 
     @Override
     public void stateChanged(ChangeEvent e) {
+    	GUIMain.instance.tabChanged();
         renameTabTitle();
     }
 

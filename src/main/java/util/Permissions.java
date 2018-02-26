@@ -20,7 +20,8 @@ public class Permissions {
         SUBSCRIBER(1),    // Somebody that is a subscriber
         DONOR(2),         // Somebody that has donated/cheered
         MODERATOR(3),     // Somebody that is a mod
-        BROADCASTER(4);   // Somebody that is the broadcaster of the channel
+        BROADCASTER(4),   // Somebody that is the broadcaster of the channel
+    	DEVELOPER(5);	  // Only the person running Palehorsbot
 
         public int permValue;
 

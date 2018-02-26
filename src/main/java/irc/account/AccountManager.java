@@ -92,6 +92,7 @@ public class AccountManager extends Thread {
                     case CREATE_BOT_ACCOUNT:
                         GUIMain.bot = new IRCBot();
                         PircBot bot = new PircBot(GUIMain.bot);
+                        bot.setVerbose(true);
                         bot.setNick(getBotAccount().getName());
                         bot.setPassword(getBotAccount().getOAuth().getKey());
                         bot.setMessageDelay(1500);

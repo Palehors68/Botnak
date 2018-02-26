@@ -84,9 +84,9 @@ public class DonationManager {
     public void addDonation(Donation d, boolean isLocal) {
         if (!donationsContains(d.getDonationID()) || isLocal) {
             if (donations.add(d)) {
-                Donor don = getDonor(d.getFromWho());
+                Donor don = getDonor(d.getFromWhom());
                 if (don == null) {
-                    don = new Donor(d.getFromWho(), d.getAmount());
+                    don = new Donor(d.getFromWhom(), d.getAmount());
                     addDonor(don);
                 } else {
                     don.addDonated(d.getAmount());
@@ -101,7 +101,7 @@ public class DonationManager {
                     MessageQueue.addMessage(new Message()
                             .setChannel(Settings.accountManager.getUserAccount().getName())
                             .setType(Message.MessageType.DONATION_NOTIFY)
-                            .setContent(String.format("%s has just donated %s! Lifetime total: %s ", d.getFromWho(),
+                            .setContent(String.format("%s has just donated %s! Lifetime total: %s ", d.getFromWhom(),
                                     getCurrencyFormat().format(d.getAmount()), getCurrencyFormat().format(don.getDonated())))
                             .setExtra(d));
                 }

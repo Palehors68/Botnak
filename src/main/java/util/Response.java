@@ -9,16 +9,33 @@ package util;
 public class Response {
 
     private boolean isSuccessful = false; //defaults to failed
+    private boolean isWhisperable = false;
     private String responseText = "";
+    private boolean allowWhispers = true;
 
     public Response() {
         //default, blank response
+    }
+    
+    public Response(String responseText){
+    	// new Response with text and default false
+    	this.responseText = responseText;
+    }
+    
+    public Response(String responseText, boolean isSuccessful){
+    	this.responseText = responseText;
+    	this.isSuccessful = isSuccessful;
     }
 
     public void wasSuccessful() {
         this.isSuccessful = true;
     }
 
+    public void canWhisper(){
+    	if (allowWhispers)
+    		this.isWhisperable = true;
+    }
+    
     public void setResponseText(String responseText) {
         this.responseText = responseText;
     }
@@ -32,5 +49,15 @@ public class Response {
      */
     public boolean isSuccessful() {
         return isSuccessful;
+    }
+    
+    public boolean isWhisperable(){
+    	return isWhisperable;
+    }
+    
+    public void addSenderToResponseText(String sender){
+    	if (!sender.contains("@")) sender = "@" + sender;
+    	this.setResponseText(sender + ", " + getResponseText());
+    	allowWhispers = false;
     }
 }

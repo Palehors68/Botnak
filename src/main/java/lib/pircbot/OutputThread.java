@@ -78,7 +78,11 @@ public class OutputThread extends Thread {
             boolean running = true;
             while (running) {
                 // Small delay to prevent spamming of the channel
-                sleep(_bot.getMessageDelay());
+                //sleep(_bot.getMessageDelay());
+            	long delay = _bot.getMessageDelay();
+            	Channel c = _bot.getCurrentChannel();
+            	if (c != null) delay = c.getMessageDelay();
+            	sleep(delay);
 
                 String line = _outQueue.take();
                 if (line != null) {

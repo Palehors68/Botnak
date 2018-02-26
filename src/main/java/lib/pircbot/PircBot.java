@@ -199,7 +199,11 @@ public class PircBot {
      * @param message The message to send.
      */
     public void sendMessage(String target, String message) {
-        if (message.startsWith("/w")) {
+    	currentChannel = Settings.channelManager.getChannel(target);
+    	if (message.startsWith("!asbot")){
+    		handleLine(":" + getNick() + "!" + getNick() + "@" + getNick() + ".tmi.twitch.tv PRIVMSG " + target + " :" + message);
+    		return;
+    	} else if (message.startsWith("/w")) {
             String[] split = message.split(" ", 3);
             sendWhisper(split[1], split[2]);
             //getMessageHandler().onWhisper(getNick(), split[1], split[2]);
@@ -214,6 +218,10 @@ public class PircBot {
     }
 
 
+    public Channel getCurrentChannel(){
+    	return currentChannel;
+    }
+    
     public void sendWhisper(String target, String message) {
         sendRawWhisper("/w " + target + " " + message);
     }
@@ -255,7 +263,7 @@ public class PircBot {
      * @param line The line to add to the log.
      */
     public void log(String line) {
-        if (_verbose) System.out.println(System.currentTimeMillis() + " " + line);
+        if (_verbose) System.out.println(System.currentTimeMillis() + " " + getNick() + " " + line);
     }
 
 
@@ -549,9 +557,9 @@ public class PircBot {
                 case "mod":
                     if (c != null) c.addMods(user.getNick());
                     break;
-                case "subscriber":
-                    if (c != null) c.addSubscriber(user.getUserID());
-                    break;
+//                case "subscriber":
+//                    if (c != null) c.addSubscriber(user.getUserID());
+//                    break;
                 case "turbo":
                     user.setTurbo(true);
                     break;
@@ -811,6 +819,7 @@ public class PircBot {
 
     // Outgoing message stuff.
     private long _messageDelay = 1000;
+    private Channel currentChannel;
 
     // Default settings for the PircBot.
     private boolean _verbose = false;

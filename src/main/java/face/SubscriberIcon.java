@@ -8,10 +8,16 @@ public class SubscriberIcon {
 
     private String fileLoc = null;
     private String channel = null;
+    private int length;
 
     public SubscriberIcon(String channel, String file) {
-        this.channel = channel;
+        this(channel, file, 0);
+    }
+    
+    public SubscriberIcon(String channel, String file, int length){
+    	this.channel = channel;
         fileLoc = file;
+        this.length = length;
     }
 
     public String getChannel() {
@@ -20,5 +26,9 @@ public class SubscriberIcon {
 
     public String getFileLoc() {
         return fileLoc;
+    }
+    
+    public int getLength() {
+    	return length;
     }
 }

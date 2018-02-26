@@ -22,6 +22,7 @@ public class IRCViewer extends MessageHandler {
     }
 
     public void doConnect(String channel) {
+    	getViewer().log("Trying to connect to " + channel);
         channel = channel.startsWith("#") ? channel : "#" + channel;
         Settings.accountManager.addTask(new Task(getViewer(), Task.Type.JOIN_CHANNEL, channel));
         if (Settings.logChat.getValue()) Utils.logChat(null, channel, 0);
@@ -30,6 +31,18 @@ public class IRCViewer extends MessageHandler {
             if (FaceManager.doneWithFrankerFaces)
                 FaceManager.handleFFZChannel(channel.substring(1));
         }
+    }
+    
+    public void onBanned(String line){
+    	String[] parts = line.split(" ");
+    	StringBuilder sb = new StringBuilder();
+    	sb.append(getViewer().getNick()).append(" has been ");
+    	for (int i = 6; i < parts.length; i++){
+    		sb.append(parts[i]);
+    		sb.append(" ");
+    	}
+    	
+    	MessageQueue.addMessage(new Message(sb.toString(), Message.MessageType.BAN_NOTIFY).setChannel(parts[3].substring(1)));
     }
 
     /**
@@ -62,7 +75,24 @@ public class IRCViewer extends MessageHandler {
     @Override
     public void onMessage(final String channel, final long senderID, final String message)
     {
-        MessageQueue.addMessage(new Message(channel, message, Message.MessageType.NORMAL_MESSAGE).setSenderID(senderID));
+        //MessageQueue.addMessage(new Message(channel, message, Message.MessageType.NORMAL_MESSAGE).setSenderID(senderID));
+    	if (message.startsWith("!asbot ")){
+    		if (message.length() > 7) GUIMain.bot.getBot().sendMessage(channel, message.substring("!asbot ".length()));
+    	//} else if (sender.equalsIgnoreCase(GUIMain.currentSettings.accountManager.getViewer().getNick()) && message.equalsIgnoreCase("!recon")) {
+    		//GUIMain.log("Reconnecting " + GUIMain.currentSettings.accountManager.getBot().getNick() + " to " + channel);
+    		//GUIMain.currentSettings.accountManager.addTask(
+    		//		new Task(GUIMain.currentSettings.accountManager.getBot(), Task.Type.LEAVE_CHANNEL, channel));
+			//GUIMain.currentSettings.accountManager.addTask(
+			//		new Task(GUIMain.currentSettings.accountManager.getBot(), Task.Type.JOIN_CHANNEL, channel));
+			//GUIMain.log("Reconnecting " + GUIMain.currentSettings.accountManager.getViewer().getNick() + " to " + channel);
+    		//GUIMain.currentSettings.accountManager.addTask(
+    		//		new Task(GUIMain.currentSettings.accountManager.getViewer(), Task.Type.LEAVE_CHANNEL, channel));
+			//GUIMain.currentSettings.accountManager.addTask(
+			//		new Task(GUIMain.currentSettings.accountManager.getViewer(), Task.Type.JOIN_CHANNEL, channel));
+			//return;
+    	} else {
+    		MessageQueue.addMessage(new Message(channel, message, Message.MessageType.NORMAL_MESSAGE).setSenderID(senderID));
+    	}
     }
 
     @Override
@@ -196,6 +226,7 @@ public class IRCViewer extends MessageHandler {
 
     @Override
     public void onConnect() {
+    	getViewer().log("Connecting.............");
         Settings.channelManager.addUser(new User(getViewer().getNick()));
         GUIMain.channelSet.forEach(this::doConnect);
         GUIMain.updateTitle(null);

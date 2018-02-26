@@ -3,6 +3,7 @@ package util;
 import gui.ChatPane;
 import gui.CombinedChatPane;
 import gui.forms.GUIMain;
+import lib.pircbot.Channel;
 import lib.pircbot.User;
 import util.comm.Command;
 import util.comm.ConsoleCommand;
@@ -441,14 +442,14 @@ public class Utils {
      * @param s The string from the chat.
      * @return true if added, false if fail
      */
-    public static Response addCommands(String s) {
+    public static Response addCommands(String s, boolean overwrite, Channel ch) {
         Response toReturn = new Response();
         String[] split = s.split(" ");
-        if (GUIMain.commandSet != null) {
+        if (ch.getCommandSet() != null) {
             try {
                 String name = split[1];//name of the command, [0] is "addcommand"
                 if (name.startsWith("!")) name = name.substring(1);
-                if (getCommand(name) != null) {
+                if (getCommand(name, ch) != null) {
                     toReturn.setResponseText("Failed to add command, !" + name + " already exists!");
                     return toReturn;
                 }
@@ -476,7 +477,7 @@ public class Utils {
                 String[] message = s.substring(bingo).split("]");
                 Command c = new Command(name, message);
                 if (!arguments.isEmpty()) c.addArguments(arguments.toArray(new String[arguments.size()]));
-                if (GUIMain.commandSet.add(c)) {
+                if (ch.getCommandSet().add(c)) {
                     toReturn.wasSuccessful();
                     toReturn.setResponseText("Successfully added command \"!" + name + "\"");
                 }
@@ -493,12 +494,12 @@ public class Utils {
      * @param key The !command trigger, or key.
      * @return true if removed, else false
      */
-    public static Response removeCommands(String key) {
+    public static Response removeCommands(String key, Channel ch) {
         Response toReturn = new Response();
-        if (GUIMain.commandSet != null && key != null) {
-            Command c = getCommand(key);
+        if (ch.getCommandSet() != null && key != null) {
+            Command c = getCommand(key, ch);
             if (c != null) {
-                if (GUIMain.commandSet.remove(c)) {
+                if (ch.getCommandSet().remove(c)) {
                     toReturn.wasSuccessful();
                     toReturn.setResponseText("Successfully removed command \"" + key + "\"");
                 }
@@ -576,7 +577,18 @@ public class Utils {
      * @param key The !command trigger, or key.
      * @return The Command that the key relates to, or null if there is no command.
      */
-    public static Command getCommand(String key) {
+    public static Command getCommand(String key, Channel ch) {
+    	//first try the channel
+    			if (ch != null){
+    				if (ch.getCommandSet() != null && key != null) {
+    					for (Command c1 : ch.getCommandSet()) {
+    						if (key.equals(c1.getTrigger())) {
+    							return c1;
+    						}
+    					}
+    				}
+    			}
+    			//then check global
         if (GUIMain.commandSet != null && key != null) {
             for (Command c1 : GUIMain.commandSet) {
                 if (key.equals(c1.getTrigger())) {
@@ -596,7 +608,9 @@ public class Utils {
      */
     public static ConsoleCommand getConsoleCommand(String key, String channel, User u) {
         String master = Settings.accountManager.getUserAccount().getName();
-        if (!channel.contains(master)) return null;
+        if (!channel.contains(master)) {
+        	if (!u.getLowerNick().equalsIgnoreCase(master)) return null;
+        }
         if (u != null) {
             for (ConsoleCommand c : GUIMain.conCommands) {
                 if (key.equalsIgnoreCase(c.getTrigger())) {
@@ -721,6 +735,81 @@ public class Utils {
         return false;
     }
 
+    /**
+	 * Handles the adding of a quote
+	 * 
+	 * @param mess
+	 *            The entire message to dissect.
+	 */
+	public static Response handleQuote(Channel ch, String mess) {
+		Response toReturn = new Response();
+		if (mess == null || "".equals(mess)) {
+			toReturn.setResponseText("Failed to add quote, the message is null!");
+			return toReturn;
+		}
+		//check
+		if (ch == null){
+			toReturn.setResponseText("Failed to add quote, couldn't find channel!");
+			return toReturn;
+		}
+		String[] split = mess.split(" ");
+		String trigger = split[0];
+		String quote;
+		if (split.length > 1) {
+			switch (trigger.toLowerCase()) {
+			case "addquote":
+				// add the quote
+				quote = mess.substring(mess.indexOf(" ") + 1, mess.length());
+				ch.addQuote(quote);
+				toReturn.wasSuccessful();
+				toReturn.setResponseText("Successfully added quote!");
+				break;
+			case "quote":
+				try{
+					int index = Integer.parseInt(split[1]);
+					toReturn.setResponseText(ch.getQuote(index));
+				} catch (Exception e){
+					toReturn.setResponseText(ch.getQuote());
+				}
+				break;
+			case "removequote":
+				try{
+					int index = Integer.parseInt(split[1]);
+					toReturn.setResponseText("Unable to remove quote!");
+					if (ch.removeQuote(index)) toReturn.setResponseText("Successfully removed quote " + index + "!");
+				} catch (Exception e){
+					toReturn.setResponseText("Usage: !removequote #");
+				}
+				break;
+			default:
+				// bad command
+				toReturn.setResponseText("Quote error: bad command!");
+				break;
+			}
+		} else {
+			switch (trigger.toLowerCase()){
+			case "removeallquotes":
+				// remove all quotes
+				ch.removeAllQuotes();
+				toReturn.wasSuccessful();
+				toReturn.setResponseText("All quotes successfully removed!");
+				break;
+			case "quote":
+				toReturn.setResponseText(ch.getQuote());
+				toReturn.wasSuccessful();
+				break;
+			case "removequote":
+				toReturn.setResponseText("Usage: !removequote #");
+				break;
+			default:
+				// bad command
+				toReturn.setResponseText("Quote error: bad command!");
+				break;
+			}
+		}
+		return toReturn;
+	}
+    
     /**
      * Handles the adding/removing of a keyword and the colors.
      *
@@ -950,6 +1039,17 @@ public class Utils {
             GUIMain.log(e);
         }
     }
+    
+    public static ConsoleCommand.Action getAction(String key) {
+        ConsoleCommand.Action act = null;
+        for (ConsoleCommand.Action a : ConsoleCommand.Action.values()) {
+            if (a.toString().equalsIgnoreCase(key)) {
+                act = a;
+                break;
+            }
+        }
+        return act;
+    }
 
     /**
      * One to many methods required creating a BufferedReader just to read one line from it.
@@ -1060,5 +1160,100 @@ public class Utils {
             channelsBox.addItem(s.replaceAll("#", ""));
 
         channelsBox.setSelectedItem(GUIMain.getCurrentPane().getChannel());
+    }
+    
+    public static int fuzzyScore(CharSequence term, CharSequence query) {
+        if (term == null || query == null) {
+            throw new IllegalArgumentException("Strings must not be null");
+        }
+
+        // fuzzy logic is case insensitive. We normalize the Strings to lower
+        // case right from the start. Turning characters to lower case
+        // via Character.toLowerCase(char) is unfortunately insufficient
+        // as it does not accept a locale.
+        final String termLowerCase = term.toString().toLowerCase();
+        final String queryLowerCase = query.toString().toLowerCase();
+
+        if (termLowerCase.equals(queryLowerCase)) return Integer.MAX_VALUE;
+        // the resulting score
+        int score = 0;
+
+        // the position in the term which will be scanned next for potential
+        // query character matches
+        int termIndex = 0;
+
+        // index of the previously matched character in the term
+        int previousMatchingCharacterIndex = Integer.MIN_VALUE;
+
+        for (int queryIndex = 0; queryIndex < queryLowerCase.length(); queryIndex++) {
+            final char queryChar = queryLowerCase.charAt(queryIndex);
+
+            boolean termCharacterMatchFound = false;
+            for (; termIndex < termLowerCase.length()
+                    && !termCharacterMatchFound; termIndex++) {
+                final char termChar = termLowerCase.charAt(termIndex);
+
+                if (queryChar == termChar) {
+                    // simple character matches result in one point
+                    score++;
+
+                    // subsequent character matches further improve
+                    // the score.
+                    if (previousMatchingCharacterIndex + 1 == termIndex) {
+                        score += 2;
+                    }
+
+                    previousMatchingCharacterIndex = termIndex;
+
+                    // we can leave the nested loop. Every character in the
+                    // query can match at most one character in the term.
+                    termCharacterMatchFound = true;
+                }
+            }
+        }
+
+        return score;
+    }
+
+    public static double compareStrings(String term, String query){
+    	ArrayList pairs1 = wordLetterPairs(term.toUpperCase());
+    	ArrayList pairs2 = wordLetterPairs(query.toUpperCase());
+    	int intersection = 0;
+    	int union = pairs1.size() + pairs2.size();
+    	for (int i=0; i<pairs1.size(); i++) {
+    		Object pair1 = pairs1.get(i);
+    		for(int j=0; j<pairs2.size(); j++) {
+    			Object pair2=pairs2.get(j);
+    			if (pair1.equals(pair2)) {
+    				intersection++;
+    				pairs2.remove(j);
+    				break;
+    			}
+    		}
+    	}
+    	return (2.0*intersection)/union;
+    }
+    
+    private static String[] letterPairs(String str){
+    	if (str.length() == 1) return new String[]{str};
+    	int numPairs = str.length() - 1;
+    	String[] pairs = new String[numPairs];
+    	for (int i = 0; i<numPairs; i++){
+    		pairs[i] = str.substring(i,  i+2);
+    	}
+    	return pairs;
+    }
+
+    private static ArrayList wordLetterPairs(String str){
+    	ArrayList allPairs = new ArrayList();
+    	String[] words = str.split("\\s");
+    	//For each word
+    	for (int w = 0; w < words.length; w++) {
+    		String[] pairsInWord = letterPairs(words[w]);
+    		for (int p=0; p < pairsInWord.length; p++) {
+    			allPairs.add(pairsInWord[p]);
+    		}
+    	}
+    	return allPairs;
     }
 }

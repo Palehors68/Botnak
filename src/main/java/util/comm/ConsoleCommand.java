@@ -25,6 +25,7 @@ public class ConsoleCommand {
     public List<String> certainPermission;
     public int classPermission;
     public String trigger;
+    private final String helpText;
 
     public enum Action { //one for each
         ADD_FACE,
@@ -68,7 +69,26 @@ public class ConsoleCommand {
         SEE_PREV_SOUND_SUB,
         SEE_PREV_SOUND_DON,
         SEE_OR_SET_REPLY_TYPE,
-        SEE_OR_SET_VOLUME
+        SEE_OR_SET_VOLUME,
+        ADD_QUOTE,
+        CAT,
+        CLEAR_GAME,
+        DAMPE_RACE,
+        GET_QUOTE,
+        HELP,
+        HOST_USER,
+        JUDGE_RACE,
+        REMOVE_ALL_QUOTES,
+        REMOVE_QUOTE,
+        SET_GAME,
+        SET_SUB_SOUND,
+        TALK,
+        THROTTLE,
+        THROTTLEBOT,
+        WHISPER,
+        WR,
+        FOLLOWAGE
+
     }
 
     /**
@@ -79,11 +99,16 @@ public class ConsoleCommand {
      * @param classPerm         The class permission (@see Constants.PERMISSION_ s)
      * @param certainPermission The certain users able to use the command.
      */
-    public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission) {
+    public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission, String helpText) {
         action = act;
         this.trigger = trigger;
         classPermission = classPerm;
         this.certainPermission = certainPermission;
+        this.helpText = helpText;
+    }
+    
+    public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission){
+    	this(trigger, act, classPerm, certainPermission, "");
     }
 
     public Action getAction() {
@@ -109,10 +134,20 @@ public class ConsoleCommand {
     public void setCertainPermission(String... newPerm) {
         certainPermission = Arrays.asList(newPerm);
     }
+    
+    public String getHelpText(){
+    	return helpText;
+    }
 
     @Override
     public String toString() {
         String certainPerm = certainPermission.isEmpty() ? "null" : certainPermission.stream().collect(Collectors.joining(","));
         return trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+    	if (!(o instanceof ConsoleCommand)) return false;
+    	return trigger.equalsIgnoreCase( ((ConsoleCommand) o).getTrigger());
     }
 }

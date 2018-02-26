@@ -10,6 +10,7 @@ import irc.Subscriber;
 import irc.message.Message;
 import irc.message.MessageQueue;
 import irc.message.MessageWrapper;
+import lib.pircbot.Channel;
 import lib.pircbot.User;
 import util.Constants;
 import util.Utils;
@@ -365,6 +366,8 @@ public class ChatPane implements DocumentListener {
             }
             boolean isSubscriber = senderUser.isSubscriber(channel);
             if (isSubscriber) {
+            	Channel ch = Settings.channelManager.getChannel(channel);
+            	int length = ch.isSubscriber(senderUser);
                 insertIcon(m, IconEnum.SUBSCRIBER, channel);
             } else {
                 if (Utils.isMainChannel(channel)) {

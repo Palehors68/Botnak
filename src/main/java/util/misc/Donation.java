@@ -34,7 +34,7 @@ public class Donation implements Comparable<Donation> {
         return donationID;
     }
 
-    public String getFromWho() {
+    public String getFromWhom() {
         return fromWho;
     }
 
@@ -68,7 +68,7 @@ public class Donation implements Comparable<Donation> {
     public boolean equals(Object obj) {
         return (obj instanceof Donation && ((Donation) obj).getAmount() == this.getAmount()
                 && ((Donation) obj).getDateReceived().equals(this.getDateReceived()) &&
-                ((Donation) obj).getFromWho().equals(this.getFromWho()) && ((Donation) obj).getNote().equals(this.getNote()) &&
+                ((Donation) obj).getFromWhom().equals(this.getFromWhom()) && ((Donation) obj).getNote().equals(this.getNote()) &&
                 ((Donation) obj).getDonationID().equals(this.getDonationID()));
     }
 

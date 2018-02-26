@@ -2,6 +2,7 @@ package face;
 
 import gui.forms.GUIMain;
 import lib.JSON.JSONArray;
+import lib.JSON.JSONException;
 import lib.JSON.JSONObject;
 import lib.pircbot.User;
 import lib.scalr.Scalr;
@@ -130,56 +131,135 @@ public class FaceManager {
      * @return The URL of the subscriber icon.
      */
     public static URL getSubIcon(String channel) {
-        for (SubscriberIcon i : subIconSet) {
-            if (i.getChannel().equalsIgnoreCase(channel)) {
-                try {
-                    if (Utils.areFilesGood(i.getFileLoc())) {
-                        return new File(i.getFileLoc()).toURI().toURL();
-                    } else {
-                        //This updates the icon, all you need to do is remove the file
-                        subIconSet.remove(i);
-                        break;
-                    }
-                } catch (Exception e) {
-                    GUIMain.log(e);
-                }
-            }
-        }
-        String path = APIRequests.Twitch.getSubIcon(channel);
-        if (path != null)
-        {
-            subIconSet.add(new SubscriberIcon(channel, path));
-            return getSubIcon(channel);
-        }
-        return null;
+//        for (SubscriberIcon i : subIconSet) {
+//            if (i.getChannel().equalsIgnoreCase(channel)) {
+//                try {
+//                    if (Utils.areFilesGood(i.getFileLoc())) {
+//                        return new File(i.getFileLoc()).toURI().toURL();
+//                    } else {
+//                        //This updates the icon, all you need to do is remove the file
+//                        subIconSet.remove(i);
+//                        break;
+//                    }
+//                } catch (Exception e) {
+//                    GUIMain.log(e);
+//                }
+//            }
+//        }
+//        String path = APIRequests.Twitch.getSubIcon(channel);
+//        if (path != null)
+//        {
+//            subIconSet.add(new SubscriberIcon(channel, path));
+//            return getSubIcon(channel);
+//        }
+//        return null;
+    	
+    	URL toReturn = null;
+		int length = -1;
+		String split[] = channel.split("/");
+		channel = split[0];
+		try {
+		length = Integer.parseInt(split[1]);
+		} catch (Exception e) {
+//			GUIMain.log(channel);
+//			GUIMain.log(e.getMessage());
+			length = 0; //Just get the minimum sub icon
+		}
+		for (SubscriberIcon i : subIconSet) {
+			if (i.getChannel().contains(channel)){
+				if (i.getLength() <= length) {
+					try {
+						if (Utils.areFilesGood(i.getFileLoc())) {
+							toReturn =  new File(i.getFileLoc()).toURI().toURL();
+						} else {
+							//This updates the icon, all you need to do is remove the file
+							subIconSet.remove(i);
+							break;
+						}
+					} catch (Exception e) {
+						GUIMain.log(e);
+					}
+				}
+			}
+		}
+
+		//        String path = APIRequests.Twitch.getSubIcon(channel);
+		if (toReturn == null) {
+//			if (APIRequests.Twitch.getSubIcon(channel)){
+//				return getSubIcon(channel + "/" + length);
+//			}
+		}
+		return toReturn;
     }
 
     /**
      * Builds the giant all-containing Twitch Face map.
      */
     public static void buildMap() {
-        try {
-            // Load twitch faces
-            String line = APIRequests.Twitch.getAllEmotes();
-            if (!line.isEmpty()) {
-                try {
-                    JSONObject init = new JSONObject(line);
-                    JSONArray emotes = init.getJSONArray("emoticons");
-                    for (int i = 0; i < emotes.length(); i++) {
-                        JSONObject emote = emotes.getJSONObject(i);
-                        int ID = emote.getInt("id");
-                        if (twitchFaceMap.get(ID) != null) continue;
-                        String regex = emote.getString("code").replaceAll("\\\\&lt\\\\;", "\\<").replaceAll("\\\\&gt\\\\;", "\\>");
-                        String URL = "http://static-cdn.jtvnw.net/emoticons/v1/" + ID + "/1.0";
-                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true));
-                    }
-                } catch (Exception e) {
-                    GUIMain.log("Failed to load online Twitch faces, is the API endpoint down?");
-                }
-            }
-        } catch (Exception e) {
-            GUIMain.log(e);
-        }
+//        try {
+//            // Load twitch faces
+//            String line = APIRequests.Twitch.getAllEmotes();
+//            if (!line.isEmpty()) {
+//                try {
+//                    JSONObject init = new JSONObject(line);
+//                    JSONArray emotes = init.getJSONArray("emoticons");
+//                    for (int i = 0; i < emotes.length(); i++) {
+//                        JSONObject emote = emotes.getJSONObject(i);
+//                        int ID = emote.getInt("id");
+//                        if (twitchFaceMap.get(ID) != null) continue;
+//                        String regex = emote.getString("code").replaceAll("\\\\&lt\\\\;", "\\<").replaceAll("\\\\&gt\\\\;", "\\>");
+//                        String URL = "http://static-cdn.jtvnw.net/emoticons/v1/" + ID + "/1.0";
+//                        Integer emoticonSet = 0;
+//                        try {
+//                        	emoticonSet = new Integer(emote.getInt("emoticon_set"));
+//                        } catch (JSONException e){
+//                        	downloadEmote(ID);
+//                        }
+//                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true, emoticonSet.intValue() * -1));
+//                    }
+//                } catch (Exception e) {
+//                    GUIMain.log("Failed to load online Twitch faces, is the API endpoint down?");
+//                }
+//            }
+//        } catch (Exception e) {
+//            GUIMain.log(e);
+//        }
+    	
+    	try {
+			// Load twitch faces
+			int q = 0;
+			while (Settings.twitchClientID.getValue() == null) { System.out.println(++q);}
+			//            URL url = new URL("https://api.twitch.tv/kraken/chat/emoticon_images?client_id=" + GUIMain.currentSettings.twitchClientID);
+			//            BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
+			//            String line = reader.readLine();
+			//            reader.close();
+			String line = APIRequests.Twitch.getAllEmotes();
+			if (line != null) {
+				try {
+					JSONObject init = new JSONObject(line);
+					JSONArray emotes = init.getJSONArray("emoticons");
+					for (int i = 0; i < emotes.length(); i++) {
+						JSONObject emote = emotes.getJSONObject(i);
+						int ID = emote.getInt("id");
+						if (twitchFaceMap.get(ID) != null) continue;
+						String regex = emote.getString("code").replaceAll("\\\\&lt\\\\;", "\\<").replaceAll("\\\\&gt\\\\;", "\\>");
+						String URL = "http://static-cdn.jtvnw.net/emoticons/v1/" + ID + "/1.0";
+						//                        onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true));
+						Integer emoticonSet = 0;
+						try{
+							emoticonSet = new Integer(emote.getInt("emoticon_set"));
+						} catch (JSONException e) {
+							downloadEmote(ID);
+						}
+						onlineTwitchFaces.put(ID, new TwitchFace(regex, URL, true, emoticonSet.intValue() * -1));
+					}
+				} catch (Exception e) {
+					GUIMain.log("Failed to load online Twitch faces, is the API endpoint down?");
+				}
+			}
+		} catch (Exception e) {
+			GUIMain.log(e);
+		}
     }
 
     /**
@@ -298,7 +378,7 @@ public class FaceManager {
     }
 
     public static void handleEmoteSet(String emotes) {
-        if (checkedEmoteSets) return;
+        if (checkedEmoteSets || !doneWithTwitchFaces) return;
         ThreadEngine.submit(() -> {
             try {
                 checkedEmoteSets = true;
@@ -451,7 +531,7 @@ public class FaceManager {
             String fileName = Utils.setExtension(String.valueOf(emote), ".png");
             File toSave = new File(Settings.twitchFaceDir.getAbsolutePath() + File.separator + fileName);
             if (download(f.getFilePath(), toSave, FACE_TYPE.TWITCH_FACE)) {
-                TwitchFace newFace = new TwitchFace(f.getRegex(), toSave.getAbsolutePath(), true);
+                TwitchFace newFace = new TwitchFace(f.getRegex(), toSave.getAbsolutePath(), true, f.getEmoticonSet());
                 twitchFaceMap.put(emote, newFace);
                 return newFace;
             }

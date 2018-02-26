@@ -20,6 +20,7 @@ import util.settings.Settings;
 import java.awt.*;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArraySet;
+import java.util.HashSet;
 
 /**
  * This class is used to represent a user on an IRC server.
@@ -41,6 +42,7 @@ public class User implements Comparable<User> {
     private long userID;
 
     private Set<Integer> emotes;
+    private HashSet<Integer> emoteSet = new HashSet<Integer>();
 
     private Color color = null;
     private Donor donor = null;
@@ -182,7 +184,7 @@ public class User implements Comparable<User> {
      */
     public boolean isSubscriber(String channel) {
         Channel c = Settings.channelManager.getChannel(channel);
-        return c != null && c.isSubscriber(this);
+        return c != null && (c.isSubscriber(this) != -1);
     }
 
     public boolean isDonor() {
@@ -325,5 +327,22 @@ public class User implements Comparable<User> {
      */
     public int compareTo(User o) {
         return o._lowerNick.compareTo(_lowerNick);
+    }
+    
+    public boolean hasEmoteSet(Integer set){
+    	return this.emoteSet.contains(set);
+    }
+    
+    public void handleEmoteSet(String emoteSet){
+    	if (emoteSet.equals("")) return;
+    	String[] sets = emoteSet.split(",");
+    	for (int i = 0; i < sets.length; i++) {
+    		Integer currentSet;
+    		try {
+    			currentSet = Integer.parseInt(sets[i]) * -1;
+    			if (!this.emoteSet.contains(currentSet))
+    				this.emoteSet.add(currentSet);
+    		} catch (Exception e) {}
+    	}
     }
 }

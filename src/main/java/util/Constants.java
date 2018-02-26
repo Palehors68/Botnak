@@ -57,6 +57,7 @@ public class Constants {
     public static final Pattern PATTERN_VIEWER_COUNT = Pattern.compile("\"viewers\":\\s*(\\d+)");
     public static final Pattern PATTERN_TWITCH_VIDEO_URL = Pattern.compile("/videos/([0-9]+)");
     public static final Pattern PATTERN_FILE_NAME_EXCLUDE = Pattern.compile("[/:\"*?<>|]");
+    public static final Pattern CREATED_AT_PATTERN = Pattern.compile("\"created_at\":\\s*");
     /**
      * The regex String for finding URLs in messages.
      * credit: TDuva

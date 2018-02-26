@@ -8,6 +8,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArraySet;
 import java.util.stream.Stream;
 
+import util.APIRequests;
+
 /**
  * Created by Nick on 12/22/13.
  */
@@ -104,7 +106,7 @@ public class ChannelManager {
     public void handleSubscriber(String channel, long userID)
     {
         Channel c = getChannel(channel);
-        if (c != null) c.addSubscriber(userID);
+        if (c != null) c.addSubscriber(userID, 0); //0 for new subs
     }
 
     /**
