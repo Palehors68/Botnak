@@ -247,6 +247,14 @@ public class IRCBot extends MessageHandler {
 	                }
 	            });
 			}
+			
+			if (message.equals("!test") && senderUser.getLowerNick().equals("palehors68")){
+				String myMessage = "@badges=subscriber/3,premium/1;color=#1E90FF;display-name=ACEzioDanks;emotes=;id=0ae40b5d-4878-4566-b251-daa2b0ba52f2;login=aceziodanks;mod=0;msg-id=resub;msg-param-months=4;msg-param-sub-plan-name=Dr\\sDisRespect;msg-param-sub-plan=1000;room-id=17337557;subscriber=1;system-msg=ACEzioDanks\\sjust\\ssubscribed\\swith\\sa\\s$4.99\\ssub.\\sACEzioDanks\\ssubscribed\\sfor\\s4\\smonths\\sin\\sa\\srow!;tmi-sent-ts=1519755355554;turbo=0;user-id=72263567;user-type= :tmi.twitch.tv USERNOTICE #drdisrespectlive :4 Months subbed but even more followed, cant get enough of that VIOLENCE. SPEED. MOMENTUM. Yayayayayayaya.";
+				Message m = new Message("#palehorsbot", myMessage, Message.MessageType.SUB_NOTIFY);
+				MessageQueue.addMessage(m);
+			}
+			
+			
 			String first = "";
 			if (split.length > 1) first = split[1];
 			//commands
