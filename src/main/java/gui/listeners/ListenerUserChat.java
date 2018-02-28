@@ -6,6 +6,10 @@ import util.settings.Settings;
 
 import javax.swing.*;
 import javax.swing.text.BadLocationException;
+
+import face.Face;
+import face.FaceManager;
+
 import java.awt.*;
 import java.awt.event.KeyAdapter;
 import java.awt.event.KeyEvent;
@@ -143,7 +147,8 @@ public class ListenerUserChat extends KeyAdapter {
             if (selection != null) {
                 try {
                     final String selectedSuggestion = selection.substring(subWord.length());
-                    userChat.getDocument().insertString(insertionPosition, selectedSuggestion, null);
+                    userChat.getDocument().remove(insertionPosition, subWord.length());
+                    userChat.getDocument().insertString(insertionPosition, selection, null);
                     shouldShow = false;
                     hide();
                 } catch (BadLocationException e1) {
@@ -197,6 +202,7 @@ public class ListenerUserChat extends KeyAdapter {
         if (start > position) {
             return;
         }
+        if (start > 0 && text.charAt(start) == ' ') start++;
         String subText = text.substring(start, position).toLowerCase();
         if ("".equals(subText) ) {//|| !subText.contains("@")) {
             shouldShow = false;
@@ -208,13 +214,24 @@ public class ListenerUserChat extends KeyAdapter {
             return;
         }
         User[] users = Settings.channelManager.getUsers(subWord);
+        ArrayList<String> names = new ArrayList<>();
         if (users.length > 0) {
-            ArrayList<String> names = new ArrayList<>();
             for (User u : users) {
-                names.add(u.getLowerNick());
+                names.add("@" + u.getLowerNick());
             }
-            suggestion = new SuggestionPanel(position, subWord, location, names.toArray(new String[names.size()]));
-            SwingUtilities.invokeLater(userChat::requestFocusInWindow);
+        }
+        
+        Face faceList[] = FaceManager.getFaces(subWord);
+        if (faceList.length > 0) {
+        	for (Face f : faceList) {
+        		names.add(f.getRegex());
+        	}
+        	
+        }
+        
+        if (names.size() > 0) {
+        	suggestion = new SuggestionPanel(start, subText, location, names.toArray(new String[names.size()]));
+        	SwingUtilities.invokeLater(userChat::requestFocusInWindow);
         }
     }
 

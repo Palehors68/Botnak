@@ -954,4 +954,16 @@ public class FaceManager {
 	{
 		return bi.getSubimage(topLeft.width, topLeft.height, bottomRight.width - topLeft.width, bottomRight.height - topLeft.height);
 	}
+	
+	public static Face[] getFaces(String subWord) {
+		long viewerID = Settings.accountManager.getViewer().getUserID();
+		User u = Settings.channelManager.getUser(viewerID, false);
+		TwitchFace docfired = twitchFaceMap.get(127491);
+		int docset = docfired.getEmoticonSet();
+		boolean userhasemoteset = u.hasEmoteSet(docset);
+		
+		
+        return twitchFaceMap.values().stream().sorted().filter(s -> 
+        	(s.getRegex().toLowerCase().startsWith(subWord.toLowerCase()) && Settings.channelManager.getUser(Settings.accountManager.getViewer().getUserID(), true).hasEmoteSet(s.getEmoticonSet()))).toArray(Face[]::new);
+    }
 }

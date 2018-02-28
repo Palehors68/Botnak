@@ -1,6 +1,8 @@
 package face;
 
-public class TwitchFace extends ToggleableFace {
+import lib.pircbot.User;
+
+public class TwitchFace extends ToggleableFace implements Comparable<TwitchFace> {
 
     /**
      * This custom class was made to make Face storing a lot easier for Botnak.
@@ -20,4 +22,9 @@ public class TwitchFace extends ToggleableFace {
     public int getEmoticonSet(){
     	return emoticonSet;
     }
+
+	@Override
+	public int compareTo(TwitchFace o) {
+		return o.getRegex().toLowerCase().compareTo(getRegex().toLowerCase());
+	}
 }

@@ -505,6 +505,9 @@ public class PircBot {
                         }
                         break;
                     case "emote-sets":
+                    	if (user != null) {
+                    		user.handleEmoteSet(tag.getValue());
+                    	}
                         FaceManager.handleEmoteSet(tag.getValue());
                         break;
                     case "badges": // Although user-type handles most of this, we need it for bits status
