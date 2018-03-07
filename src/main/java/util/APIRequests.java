@@ -220,8 +220,8 @@ public class APIRequests {
                     int hours = (int) duration.abs().getSeconds() / 3600;
                     int mins = ((int) duration.abs().getSeconds() % 3600) / 60;
                     toReturn.wasSuccessful();
-                    toReturn.setResponseText("The stream has been live for: " +
-                            ((hours > 0 ? (hours + " hours ") : "") + mins + " minutes"));
+                    toReturn.setResponseText("The stream has been live for " +
+                            ((hours > 0 ? (hours + " hours ") : "") + mins + " minutes."));
                 } else
                 {
                     toReturn.setResponseText("The stream is not live!");
