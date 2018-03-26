@@ -1192,7 +1192,7 @@ public class APIRequests {
 
 						for (int i = 0; i < varsJ.getJSONArray("data").length(); i++) {
 							if (varsJ.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(toReturn[4])) {
-								toReturn[6] = varsJ.getJSONArray("data").getJSONObject(0).getString("id");
+								toReturn[6] = varsJ.getJSONArray("data").getJSONObject(i).getString("id");
 							} else {
 								continue;
 							}
@@ -1279,6 +1279,7 @@ public class APIRequests {
 
 			String details[] = getWorldRecord(game, cat, vars);
 			if (details != null){
+				if (details[0].startsWith("00:")) details[0] = details[0].substring(3);
 				toReturn.setResponseText("The WR for "  + details[2] + " (" + details[3] + details[8] + ") is " + details[0] + " by " + details[1] + " achieved on " + details[9] + ".");
 				toReturn.wasSuccessful();
 			} else {
