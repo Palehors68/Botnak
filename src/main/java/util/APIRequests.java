@@ -963,9 +963,9 @@ public class APIRequests {
 
   				writeRequest(connection, "grant_type=client_credentials");
 
-  				String s3 = readResponse(connection);
+//  				String s3 = readResponse(connection);
 
-  				JSONObject obj = new JSONObject(s3); 
+  				JSONObject obj = new JSONObject(readResponse(connection)); 
 
   				if (obj != null){
   					String tokenType = (String) obj.get("token_type");
@@ -1044,7 +1044,8 @@ public class APIRequests {
   		}
 
   	}
-    
+
+  	//Speedrun.com for WRs
     public static class SpeedRun{
 
 
@@ -1258,7 +1259,7 @@ public class APIRequests {
 				cat = ch.hasCategory() ? ch.getGameCategory() : "any";
 			} else {
 				String params = request.trim().substring(request.indexOf(' '));
-				int slash = params.indexOf('/');
+//				int slash = params.indexOf('/');
 				if (params.contains("/")) {
 					//if (slash > 0){
 					String split[] = params.split("/");

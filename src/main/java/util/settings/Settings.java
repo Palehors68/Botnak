@@ -1041,47 +1041,51 @@ public class Settings {
 		public void handleLineLoad(String line) {
 
 			if (GUIMain._debug){
-				
+
 				String _debugChannel = "Palehors68";
 				String _debugChannelName = "#" + _debugChannel;
-				if (GUIMain.channelSet.contains(_debugChannelName)) return;
-				if (accountManager.getUserAccount() != null) {
-					GUIMain.channelSet.add(_debugChannelName);
-				}
-				ChatPane cp = ChatPane.createPane(_debugChannel);
-				GUIMain.chatPanes.put(cp.getChannel(), cp);
-				GUIMain.channelPane.insertTab(cp.getChannel(), null, cp.getScrollPane(), null, cp.getIndex());
-				startIndex = cp.getIndex();
-			} else {
-
-				String[] split = line.split("\\[");
-				boolean isSingle = Boolean.parseBoolean(split[0]);
-				boolean isSelected = Boolean.parseBoolean(split[1]);
-				if (isSingle) {
-					String channel = split[2];
+				if (!GUIMain.channelSet.contains(_debugChannelName)) { 
 					if (accountManager.getUserAccount() != null) {
-						String channelName = "#" + channel;
-						GUIMain.channelSet.add(channelName);
+						GUIMain.channelSet.add(_debugChannelName);
 					}
-					ChatPane cp = ChatPane.createPane(channel);
+					ChatPane cp = ChatPane.createPane(_debugChannel);
 					GUIMain.chatPanes.put(cp.getChannel(), cp);
 					GUIMain.channelPane.insertTab(cp.getChannel(), null, cp.getScrollPane(), null, cp.getIndex());
+					startIndex = cp.getIndex();
+				}
+			} 
+
+			String[] split = line.split("\\[");
+			boolean isSingle = Boolean.parseBoolean(split[0]);
+			boolean isSelected = Boolean.parseBoolean(split[1]);
+			if (isSingle) {
+				String channel = split[2];
+				if (accountManager.getUserAccount() != null) {
+					String channelName = "#" + channel;
+					GUIMain.channelSet.add(channelName);
+				}
+				ChatPane cp = ChatPane.createPane(channel);
+				GUIMain.chatPanes.put(cp.getChannel(), cp);
+				if (!GUIMain._debug) {
+					GUIMain.channelPane.insertTab(cp.getChannel(), null, cp.getScrollPane(), null, cp.getIndex());
 					if (isSelected) startIndex = cp.getIndex();
-				} else {
-					String activeChannel = split[2];
-					String title = split[3];
-					String[] channels = split[4].split(",");
-					ArrayList<ChatPane> cps = new ArrayList<>();
-					for (String c : channels) {
-						if (accountManager.getUserAccount() != null) {
-							String channelName = "#" + c;
-							GUIMain.channelSet.add(channelName);
-						}
-						ChatPane cp = ChatPane.createPane(c);
-						GUIMain.chatPanes.put(cp.getChannel(), cp);
-						cps.add(cp);
+				}
+			} else {
+				String activeChannel = split[2];
+				String title = split[3];
+				String[] channels = split[4].split(",");
+				ArrayList<ChatPane> cps = new ArrayList<>();
+				for (String c : channels) {
+					if (accountManager.getUserAccount() != null) {
+						String channelName = "#" + c;
+						GUIMain.channelSet.add(channelName);
 					}
-					CombinedChatPane ccp = CombinedChatPane.createCombinedChatPane(cps.toArray(new ChatPane[cps.size()]));
+					ChatPane cp = ChatPane.createPane(c);
+					GUIMain.chatPanes.put(cp.getChannel(), cp);
+					cps.add(cp);
+				}
+				CombinedChatPane ccp = CombinedChatPane.createCombinedChatPane(cps.toArray(new ChatPane[cps.size()]));
+				if (!GUIMain._debug) {
 					GUIMain.channelPane.insertTab(ccp.getTabTitle(), null, ccp.getScrollPane(), null, ccp.getIndex());
 					ccp.setCustomTitle(title);
 					if (isSelected) startIndex = ccp.getIndex();
@@ -1089,34 +1093,32 @@ public class Settings {
 						ccp.setActiveChannel(activeChannel);
 						ccp.setActiveScrollPane(activeChannel);
 					}
-					GUIMain.combinedChatPanes.add(ccp);
 				}
+				GUIMain.combinedChatPanes.add(ccp);
 			}
+			//			}
 		}
 
 		@Override
 		public void handleLineSave(PrintWriter pw) {
-			if (!GUIMain._debug) {
-				int currentSelectedIndex = GUIMain.channelPane.getSelectedIndex();
-				for (int i = 1; i < GUIMain.channelPane.getTabCount() - 1; i++) {
-					ChatPane current = Utils.getChatPane(i);
-					if (current != null) {
-						if (current.isTabVisible()) {
-							boolean selected = current.getIndex() == currentSelectedIndex;
-							pw.println("true[" + String.valueOf(selected) + "[" + current.getChannel());
-						}
-					} else {
-						CombinedChatPane cc = Utils.getCombinedChatPane(i);
-						if (cc != null) {
-							//all the panes in them should be set to false
-							//their indexes are technically going to be -1
-							boolean selected = cc.getIndex() == currentSelectedIndex;
-							pw.print("false[" + String.valueOf(selected) + "[" + cc.getActiveChannel() + "[" + cc.getTabTitle() + "[");
-							pw.print(cc.getChannels().stream().collect(Collectors.joining(",")));
-							pw.println();
-						}
-					}
+			int currentSelectedIndex = GUIMain.channelPane.getSelectedIndex();
+			for (ChatPane current : GUIMain.chatPanes.values()) {
+				String channel = current.getChannel();
+				if (channel.equalsIgnoreCase("system logs")) continue;
+				if (channel.equalsIgnoreCase("palehors68") && GUIMain._debug) continue;
+				if (current.isTabVisible()) {
+					boolean selected = current.getIndex() == currentSelectedIndex;
+					pw.println("true[" + String.valueOf(selected) + "[" + channel);
 				}
+			}
+			
+			for (CombinedChatPane cc : GUIMain.combinedChatPanes) {
+				//all the panes in them should be set to false
+				//their indexes are technically going to be -1
+				boolean selected = cc.getIndex() == currentSelectedIndex;
+				pw.print("false[" + String.valueOf(selected) + "[" + cc.getActiveChannel() + "[" + cc.getTabTitle() + "[");
+				pw.print(cc.getChannels().stream().collect(Collectors.joining(",")));
+				pw.println();
 			}
 		}
 
