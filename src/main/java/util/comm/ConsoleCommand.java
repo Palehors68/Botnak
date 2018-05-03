@@ -142,7 +142,9 @@ public class ConsoleCommand {
     @Override
     public String toString() {
         String certainPerm = certainPermission.isEmpty() ? "null" : certainPermission.stream().collect(Collectors.joining(","));
-        return trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm;
+        return getHelpText().equals("") ? 
+        		trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm :
+        			trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm + "[" + getHelpText();
     }
     
     @Override

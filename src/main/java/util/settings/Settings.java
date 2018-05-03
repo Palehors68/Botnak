@@ -829,7 +829,9 @@ public class Settings {
 					if (!split[3].equalsIgnoreCase("null")) {
 						customUsers.addAll(Arrays.asList(split[3].split(",")));
 					}
-					GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers));
+					String helpText = "";
+					if (split.length == 5) helpText = split[4];
+					GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers, helpText));
 				}
 
 				// Did we miss any commands?
