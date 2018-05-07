@@ -1056,8 +1056,26 @@ public class APIRequests {
 		private static final String apiCategoryRecords = "categories/%s/records?top=1";
 		private static final String apiGameSearch = "games?name=%s";
 		private static final String apiLB = "leaderboards/%s/category/%s?top=1";
-		private static final String apiVars = "categories/%s/variables";
+		private static final String apiVars = "games/%s/variables";
 		private static final String apiLBVarsAppend = "&var-%s=%s";
+		
+		
+		/**
+		 * Extracts relevent data from JSON object
+		 * @param data - the JSON object that contains all the relevent WR data
+		 * @return toReturn - a String array with WR data that breaks down as follows:
+		 * [0]	- Runtime
+		 * [1]	- User name
+		 * [2]	- Game name
+		 * [3]	- Category name
+		 * [4]	- Category ID
+		 * [5]	- Game ID
+		 * [6]	- Main variables ID
+		 * [7]	- Individual variable ID 
+		 * [8]	- Category Label
+		 * [9]	- WR date
+		 * [10]	- Error message
+		 */
 		private static String[] details;
 
 		private static JSONObject getJSONFromURI(String URI){
@@ -1078,10 +1096,16 @@ public class APIRequests {
 			DecimalFormat df = new DecimalFormat(".###");
 			int primarySec = (int) d;
 			double remainder = d - primarySec;
-			LocalTime duration = LocalTime.ofSecondOfDay(primarySec);
-			toReturn = duration.toString();
+			
+			int h,m,s;
+			h = (int) primarySec / 3600;
+			m = (int) (primarySec % 3600) / 60;
+			s = (int) primarySec - (h*3600) - (m*60);
+			
+			toReturn = String.format("%02d:%02d:%02d", h,m,s);
 			if (remainder > 0) toReturn = toReturn.concat(df.format(remainder));
 			return toReturn;
+			
 		}
 
 		private static String getUsernameFromURL(String URI){
@@ -1103,175 +1127,7 @@ public class APIRequests {
 			return toReturn;
 		}
 
-		/**
-		 * Extracts relevent data from JSON object
-		 * @param data - the JSON object that contains all the relevent WR data
-		 * @return toReturn - a String array with WR data that breaks down as follows:
-		 * [0]	- Runtime
-		 * [1]	- User name
-		 * [2]	- Game name
-		 * [3]	- Category name
-		 * [4]	- Category ID
-		 * [5]	- Game ID
-		 * [6]	- Main variables ID
-		 * [7]	- Individual variable ID 
-		 * [8]	- Category Label
-		 * [9]	- WR date
-		 * [10]	- Error message
-		 */
-
-
-//		private static String[] getDetailsFromJSONData(JSONObject data){
-//			String[] toReturn = new String[10];
-//			String delim = "";
-//			StringBuilder sb = new StringBuilder();
-//			if (data.getJSONObject("data").has("runs")){
-//
-//				for (int i = 0; i<data.getJSONObject("data").getJSONArray("runs").length(); i++){
-//					sb.append(delim).append(getUsernameFromURL(data.getJSONObject("data").getJSONArray("runs").getJSONObject(i).getJSONObject("run").getJSONArray("players").getJSONObject(0).getString("uri")));
-//					delim = ", ";
-//				}
-//				toReturn[1] = sb.toString();
-//				toReturn[0] = getRuntimeFromDouble(data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
-//				toReturn[4] = data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("category");
-//				toReturn[9] = data.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
-//				toReturn[3] = getCategoryNameFromID(toReturn[4]);
-//			} else {
-//				for (int i = 0; i<data.getJSONObject("data").getJSONArray("players").length(); i++){
-//					sb.append(delim).append(getUsernameFromURL(data.getJSONObject("data").getJSONArray("players").getJSONObject(i).getString("uri")));
-//					delim = ", ";
-//				}
-//				toReturn[0] = getRuntimeFromDouble(data.getJSONObject("data").getJSONObject("times").getDouble("primary_t"));
-//				toReturn[1] = sb.toString();
-//				toReturn[4] = data.getJSONObject("data").getString("category");
-//				toReturn[9] = data.getJSONObject("data").getString("date");
-//				toReturn[3] = getCategoryNameFromID(toReturn[4]);
-//			}
-//			toReturn[2] = getGameNameFromID(data.getJSONObject("data").getString("game"));
-//			toReturn[5] = data.getJSONObject("data").getString("game");
-//			toReturn[8] = "";
-//			return toReturn;
-//		}
-
-//		private static String getGameNameFromID(String gameID){
-//			String URI = "https://www.speedrun.com/api/v1/games/" + gameID;
-//			JSONObject gameJ = getJSONFromURI(URI);
-//			if (gameJ != null) return gameJ.getJSONObject("data").getJSONObject("names").getString("international");
-//			return null;
-//		}
-
-//		private static String getCategoryNameFromID(String categoryID){
-//			String URI = "https://www.speedrun.com/api/v1/categories/" + categoryID;
-//			JSONObject categoryJ = getJSONFromURI(URI);
-//			if (categoryJ != null) return categoryJ.getJSONObject("data").getString("name");
-//			return null;
-//		}
-
-		/*
-		private static String[] getWorldRecord(String game, String category, String vars){
-			String toReturn[] = null;
-			if (category.contains("/")) vars = category.split("/")[1].trim();
-			boolean multi = false;
-
-			try {
-				URL url = new URL(apiBase + String.format(apiLB, game, category));
-				BufferedReader br;
-				try{
-					br = new BufferedReader(new InputStreamReader(url.openStream()));
-				} catch (Exception e) {
-					url = new URL(String.format(apiRecs, game));
-					br = new BufferedReader(new InputStreamReader(url.openStream()));
-					multi = true;
-				}
-				StringBuilder sb = new StringBuilder();
-				Utils.parseBufferedReader(br, sb, false);
-				if (sb.toString().equals("{}")) return null;
-				if (!multi){
-					toReturn =  getDetailsFromJSONData(new JSONObject(sb.toString()));
-				} else {
-					JSONObject first = new JSONObject(sb.toString());
-					JSONObject multiJ = first.getJSONObject(first.keys().next());
-					Iterator<?> keys = multiJ.keys();
-					String URI = "";
-					double high = 0.0, current = 0.0;
-					while (keys.hasNext()){
-						String key = (String) keys.next();
-						current = Utils.compareStrings(key, category);//Utils.fuzzyScore(key, category);
-						if (current > high){
-							high = current;
-							URI = multiJ.getJSONObject(key).getJSONObject("links").getString("api");
-						}
-					}
-					if (!"".equals(URI)){
-						toReturn = getDetailsFromJSONData(getJSONFromURI(URI));
-					}
-				}
-
-				if (vars != null){
-					String label = "";
-					toReturn[6] = toReturn[7] = toReturn[8] = "";
-					boolean IL = false;
-					try{
-						//String line = Utils.createAndParseBufferedReader(apiBase + apiVars.replace("%CAT%", toReturn[4]));
-						String line = Utils.createAndParseBufferedReader(apiBase + String.format(apiVars, toReturn[4])); //variables
-						JSONObject varsJ = new JSONObject(line);
-						double high = 0.0, current = 0.0;
-
-						//next check sub-categories
-						for (int i = 0; i < varsJ.getJSONArray("data").length(); i++) {
-							if (!(varsJ.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(toReturn[4]))) {
-								continue;
-							}
-
-
-
-							JSONArray valsA = varsJ.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").names();
-							for (int j = 0; j < valsA.length(); j++){
-								label = varsJ.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").getJSONObject(valsA.getString(j)).getString("label");
-								current = Utils.compareStrings(label, vars);
-								if (current > high) {
-									high = current;
-									toReturn[6] = varsJ.getJSONArray("data").getJSONObject(i).getString("id");
-									toReturn[7] = valsA.getString(j);
-									toReturn[8] = " - " + label;
-									IL = false;
-								}
-							}
-							break;
-						}
-
-						if ( !toReturn[6].equals("") && !toReturn[7].equals("")){							
-							try{
-								if (IL) {
-									JSONObject levelCatsJ = getJSONFromURI(apiBase + String.format("levels/%s/categories", toReturn[7]));
-								} else {
-									label = toReturn[8];
-									url = new URL(apiBase + String.format(apiLB, toReturn[5], toReturn[4]) + String.format(apiLBVarsAppend, toReturn[6], toReturn[7]));
-									br = new BufferedReader(new InputStreamReader(url.openStream()));
-									sb = new StringBuilder();
-									Utils.parseBufferedReader(br, sb, false);
-									if (sb.toString().equals("{}")) return toReturn;
-									toReturn = getDetailsFromJSONData(new JSONObject(sb.toString()));
-									toReturn[8] = label;
-								}
-							} catch (Exception e) {
-								GUIMain.log(e);
-							}
-
-
-						}
-					} catch (Exception e) {
-						GUIMain.log(e);
-					}
-				}
-
-			} catch (Exception e) {
-				GUIMain.log(e);
-			}
-
-			return toReturn;
-		}
-		*/
+		
 
 		public static Response processWRRequest(Channel ch, String request){
 			Response toReturn = new Response();
@@ -1396,6 +1252,7 @@ public class APIRequests {
 			}
 
 			for (int i=0; i < categories.length(); i++){
+				if (!categories.getJSONObject(i).getString("type").equalsIgnoreCase("per-game")) continue;
 				current = Utils.compareStrings(categories.getJSONObject(i).getString("name"), param);
 				if (current > high)  {
 					high = current;
@@ -1435,7 +1292,7 @@ public class APIRequests {
 			}
 			
 			if (details[6] == null) {
-				details[10] = "Couldn't find category " + category + " for level " + details[3];
+				details[10] = String.format("Couldn't find category \"%s\" for level %s.", category, details[3]);
 				return false;
 			}
 			
@@ -1492,7 +1349,7 @@ public class APIRequests {
 				}
 			} else {
 				try {
-					jobj = getJSONFromURI(apiBase + String.format(apiVars, details[4]));
+					jobj = getJSONFromURI(apiBase + String.format(apiVars, details[5]));
 				} catch (Exception e){
 					details[10] = "Unable to locate sub-category " + subcategory;
 					return false;
@@ -1500,7 +1357,8 @@ public class APIRequests {
 				String label = "";
 				double current = 0.0, high = 0.0;
 				for (int i = 0; i < jobj.getJSONArray("data").length(); i++) {
-					if (!(jobj.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(details[4]))) continue;
+					if (	(!jobj.getJSONArray("data").getJSONObject(i).getString("category").equals("")) &&
+							(!jobj.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(details[4]))) continue;
 
 					JSONArray valsA = jobj.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").names();
 					for (int j = 0; j < valsA.length(); j++){
@@ -1513,15 +1371,23 @@ public class APIRequests {
 							details[8] = " - " + label;
 						}
 					}
-					break;
+					
 				}
 
-				if ( !details[6].equals("") && !details[7].equals("")){		
+				if ( details[6] == null || details[7] == null) {
+					details[10] = String.format("Couldn't find find sub-category \"%s\" for category %s.", subcategory, details[3]);
+					return false;
+				} else {
 					try{
 						jobj = getJSONFromURI(apiBase + String.format(apiLB, details[5], details[4]) + String.format(apiLBVarsAppend, details[6], details[7]));
 					} catch (Exception e) {
 						GUIMain.log(e);
 						details[10] = "Couldn't find sub-category records for " + subcategory;
+						return false;
+					}
+					
+					if (jobj == null) {
+						details[10] = "Error finding sub-category details.";
 						return false;
 					}
 
