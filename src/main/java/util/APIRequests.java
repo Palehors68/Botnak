@@ -1088,23 +1088,6 @@ public class APIRequests {
 			}
 		}
 		
-		/**
-		 * Extracts relevent data from JSON object
-		 * @param data - the JSON object that contains all the relevent WR data
-		 * @return toReturn - a String array with WR data that breaks down as follows:
-		 * [0]	- Runtime
-		 * [1]	- User name
-		 * [2]	- Game name
-		 * [3]	- Category name
-		 * [4]	- Category ID
-		 * [5]	- Game ID
-		 * [6]	- Main variables ID
-		 * [7]	- Individual variable ID 
-		 * [8]	- Category Label
-		 * [9]	- WR date
-		 * [10]	- Error message
-		 */
-		//private static String[] details;
 
 		private static JSONObject getJSONFromURI(String URI){
 			try{
@@ -1188,7 +1171,7 @@ public class APIRequests {
 
 			toReturn.setResponseText("Usage: !wr || !wr <game> / <Optional:category>");
 			
-			if (getWorldRecord2(game, cat, vars)){
+			if (getWorldRecord(game, cat, vars)){
 				if (details.runtime.startsWith("00:")) details.runtime = details.runtime.substring(3);
 				toReturn.setResponseText(String.format("The WR for %s (%s%s) is %s by %s achieved on %s.", details.gameName, details.categoryName, details.categoryLabel, details.runtime, details.userName, details.WRDate));
 				toReturn.wasSuccessful();
@@ -1200,7 +1183,7 @@ public class APIRequests {
 		}
 
 
-		private static boolean getWorldRecord2(String game, String param2, String param3){
+		private static boolean getWorldRecord(String game, String param2, String param3){
 			details = new WRDetail();
 			
 			if (param2.contains("/")) {
@@ -1260,7 +1243,8 @@ public class APIRequests {
 				jobj = getJSONFromURI(apiBase + String.format(apiGame, details.gameID) + apiCategories);
 				categories = jobj.getJSONArray("data");
 			} catch (Exception e) {
-				//something something
+				details.errorMessage = String.format("Couldn't find any levels or categories for %s.", details.gameName);
+				return returnCode;
 			}
 
 			double high = 0.0, current = 0.0;
