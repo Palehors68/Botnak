@@ -1058,7 +1058,35 @@ public class APIRequests {
 		private static final String apiLB = "leaderboards/%s/category/%s?top=1";
 		private static final String apiVars = "games/%s/variables";
 		private static final String apiLBVarsAppend = "&var-%s=%s";
+		private static WRDetail details;
 		
+		private static class WRDetail{
+			public String 	runtime, 
+							userName, 
+							gameName, 
+							categoryName, 
+							categoryID, 
+							gameID, 
+							mainVariablesID, 
+							individualVariableID, 
+							categoryLabel, 
+							WRDate, 
+							errorMessage;
+			
+			public WRDetail() {
+				runtime = 
+						userName = 
+						gameName = 
+						categoryName = 
+						categoryID = 
+						gameID = 
+						mainVariablesID = 
+						individualVariableID = 
+						categoryLabel = 
+						WRDate = 
+						errorMessage = "";
+			}
+		}
 		
 		/**
 		 * Extracts relevent data from JSON object
@@ -1076,7 +1104,7 @@ public class APIRequests {
 		 * [9]	- WR date
 		 * [10]	- Error message
 		 */
-		private static String[] details;
+		//private static String[] details;
 
 		private static JSONObject getJSONFromURI(String URI){
 			try{
@@ -1161,11 +1189,11 @@ public class APIRequests {
 			toReturn.setResponseText("Usage: !wr || !wr <game> / <Optional:category>");
 			
 			if (getWorldRecord2(game, cat, vars)){
-				if (details[0].startsWith("00:")) details[0] = details[0].substring(3);
-				toReturn.setResponseText(String.format("The WR for %s (%s%s) is %s by %s achieved on %s.", details[2], details[3], details[8], details[0], details[1], details[9]));
+				if (details.runtime.startsWith("00:")) details.runtime = details.runtime.substring(3);
+				toReturn.setResponseText(String.format("The WR for %s (%s%s) is %s by %s achieved on %s.", details.gameName, details.categoryName, details.categoryLabel, details.runtime, details.userName, details.WRDate));
 				toReturn.wasSuccessful();
 			} else {
-				toReturn.setResponseText(details[10]);
+				toReturn.setResponseText(details.errorMessage);
 			}
 
 			return toReturn;
@@ -1173,8 +1201,8 @@ public class APIRequests {
 
 
 		private static boolean getWorldRecord2(String game, String param2, String param3){
-			details = new String[11];
-			details[8] = "";
+			details = new WRDetail();
+			
 			if (param2.contains("/")) {
 				param3 = param2.split("/")[1].trim();
 				param2 = param2.split("/")[0].trim();
@@ -1183,7 +1211,7 @@ public class APIRequests {
 			if (!getGameDetails(game)) return false;
 			switch (processLevelsAndCategories(param2)) {
 			case -1:
-				details[10] = String.format("Couldn't find any levels or categories named \"%s\" for %s.", param2, details[2]);
+				details.errorMessage = String.format("Couldn't find any levels or categories named \"%s\" for %s.", param2, details.gameName);
 				return false;
 			case 0: //level
 				if (!processLevel(param3)) return false;
@@ -1207,18 +1235,18 @@ public class APIRequests {
 					apiJ = getJSONFromURI(apiBase + String.format(apiGameSearch, game));
 					multi = true;
 					if (apiJ == null || apiJ.getJSONArray("data").length() == 0) {
-						details[10] = String.format("Unable to find game \"%s\".", game);
+						details.errorMessage = String.format("Unable to find game \"%s\".", game);
 						return false;
 					}
 				}
 			} catch (Exception e) {
-				details[10] = String.format("Unable to find game \"%s\".", game);
+				details.errorMessage = String.format("Unable to find game \"%s\".", game);
 				return false;
 			}
 
 			gameJ = multi ? apiJ.getJSONArray("data").getJSONObject(0) : apiJ.getJSONObject("data");
-			details[5] = gameJ.getString("id");
-			details[2] = gameJ.getJSONObject("names").getString("international");
+			details.gameID = gameJ.getString("id");
+			details.gameName = gameJ.getJSONObject("names").getString("international");
 
 			return true;
 		}
@@ -1227,9 +1255,9 @@ public class APIRequests {
 			JSONArray levels = null, categories = null;
 			int returnCode = -1;
 			try{
-				JSONObject jobj = getJSONFromURI(apiBase + String.format(apiGame, details[5]) + apiLevels);
+				JSONObject jobj = getJSONFromURI(apiBase + String.format(apiGame, details.gameID) + apiLevels);
 				levels = jobj.getJSONArray("data");
-				jobj = getJSONFromURI(apiBase + String.format(apiGame, details[5]) + apiCategories);
+				jobj = getJSONFromURI(apiBase + String.format(apiGame, details.gameID) + apiCategories);
 				categories = jobj.getJSONArray("data");
 			} catch (Exception e) {
 				//something something
@@ -1237,7 +1265,7 @@ public class APIRequests {
 
 			double high = 0.0, current = 0.0;
 			if (levels == null && categories == null) {
-				details[10] = "Couldn't find any levels or categories for " + details[2];
+				details.errorMessage = "Couldn't find any levels or categories for " + details.gameName;
 				return returnCode;
 			}
 
@@ -1245,8 +1273,8 @@ public class APIRequests {
 				current = Utils.compareStrings(levels.getJSONObject(i).getString("name"), param);
 				if (current > high)  {
 					high = current;
-					details[4] = levels.getJSONObject(i).getString("id");
-					details[3] = levels.getJSONObject(i).getString("name");
+					details.categoryID = levels.getJSONObject(i).getString("id");
+					details.categoryName = levels.getJSONObject(i).getString("name");
 					returnCode = 0;
 				}
 			}
@@ -1256,8 +1284,8 @@ public class APIRequests {
 				current = Utils.compareStrings(categories.getJSONObject(i).getString("name"), param);
 				if (current > high)  {
 					high = current;
-					details[4] = categories.getJSONObject(i).getString("id");
-					details[3] = categories.getJSONObject(i).getString("name");
+					details.categoryID = categories.getJSONObject(i).getString("id");
+					details.categoryName = categories.getJSONObject(i).getString("name");
 					returnCode = 1;
 				}
 			}
@@ -1274,9 +1302,9 @@ public class APIRequests {
 			
 
 			try {
-				jobj = getJSONFromURI(apiBase + String.format(apiLevelCategories, details[4]));
+				jobj = getJSONFromURI(apiBase + String.format(apiLevelCategories, details.categoryID));
 			} catch (Exception e) {
-				details[10] = "Couldn't find categories for level " + details[3];
+				details.errorMessage = "Couldn't find categories for level " + details.categoryName;
 				return false;
 			}
 			String label = "";
@@ -1286,37 +1314,37 @@ public class APIRequests {
 				current = Utils.compareStrings(label, category);
 				if (current > high) {
 					high = current;
-					details[6] = jobj.getJSONArray("data").getJSONObject(i).getString("id");
-					details[8] = " - " + label;
+					details.mainVariablesID = jobj.getJSONArray("data").getJSONObject(i).getString("id");
+					details.categoryLabel = " - " + label;
 				}
 			}
 			
-			if (details[6] == null) {
-				details[10] = String.format("Couldn't find category \"%s\" for level %s.", category, details[3]);
+			if (details.mainVariablesID.equals("")) {
+				details.errorMessage = String.format("Couldn't find category \"%s\" for level %s.", category, details.categoryName);
 				return false;
 			}
 			
 			try {
-				jobj = getJSONFromURI(apiBase + String.format(apiCategoryRecords, details[6]));
+				jobj = getJSONFromURI(apiBase + String.format(apiCategoryRecords, details.mainVariablesID));
 			} catch (Exception e){
-				details[10] = String.format("Couldn't find records for %s - %s - %s", details[2], details[3], details[8]);
+				details.errorMessage = String.format("Couldn't find records for %s - %s - %s", details.gameName, details.categoryName, details.categoryLabel);
 				return false;
 			}
 			String delim = "";
 			StringBuilder sb = new StringBuilder();
 			for (int i = 0; i < jobj.getJSONArray("data").length(); i++) {
-				if (jobj.getJSONArray("data").getJSONObject(i).getString("level").equalsIgnoreCase(details[4])) {
+				if (jobj.getJSONArray("data").getJSONObject(i).getString("level").equalsIgnoreCase(details.categoryID)) {
 					if (jobj.getJSONArray("data").getJSONObject(i).has("runs") ) {
 						if (jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").length() > 0){
-						details[9] = jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
-						details[0] = getRuntimeFromDouble(jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
+						details.WRDate = jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
+						details.runtime = getRuntimeFromDouble(jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
 						for (int j = 0; j < jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").length(); j++) {
 							sb.append(delim).append(getUsernameFromURL(jobj.getJSONArray("data").getJSONObject(i).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").getJSONObject(j).getString("uri")));
 							delim = ", ";
 						}
-						details[1] = sb.toString();
+						details.userName = sb.toString();
 						} else {
-							details[10] = String.format("No world records exist for %s (%s%s).", details[2], details[3], details[8]);
+							details.errorMessage = String.format("No world records exist for %s (%s%s).", details.gameName, details.categoryName, details.categoryLabel);
 							return false;
 						}
 					}
@@ -1330,35 +1358,35 @@ public class APIRequests {
 			JSONObject jobj = null;
 			if (subcategory == null) {
 				try{
-					jobj = getJSONFromURI(apiBase + String.format(apiCategoryRecords, details[4]));
+					jobj = getJSONFromURI(apiBase + String.format(apiCategoryRecords, details.categoryID));
 				} catch (Exception e) {
-					details[10] = "Unable to find WR for category " + details[3];
+					details.errorMessage = "Unable to find WR for category " + details.categoryName;
 					return false;
 				}
 
 				String delim = "";
 				StringBuilder sb = new StringBuilder();
 				if (jobj.getJSONArray("data").getJSONObject(0).has("runs")) {
-					details[9] = jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
-					details[0] = getRuntimeFromDouble(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
+					details.WRDate = jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
+					details.runtime = getRuntimeFromDouble(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
 					for (int i = 0; i < jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").length(); i++) {
 						sb.append(delim).append(getUsernameFromURL(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(i).getJSONObject("run").getJSONArray("players").getJSONObject(i).getString("uri")));
 						delim = ", ";
 					}
-					details[1] = sb.toString();
+					details.userName = sb.toString();
 				}
 			} else {
 				try {
-					jobj = getJSONFromURI(apiBase + String.format(apiVars, details[5]));
+					jobj = getJSONFromURI(apiBase + String.format(apiVars, details.gameID));
 				} catch (Exception e){
-					details[10] = "Unable to locate sub-category " + subcategory;
+					details.errorMessage = "Unable to locate sub-category " + subcategory;
 					return false;
 				}
 				String label = "";
 				double current = 0.0, high = 0.0;
 				for (int i = 0; i < jobj.getJSONArray("data").length(); i++) {
 					if (	(!jobj.getJSONArray("data").getJSONObject(i).getString("category").equals("")) &&
-							(!jobj.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(details[4]))) continue;
+							(!jobj.getJSONArray("data").getJSONObject(i).getString("category").equalsIgnoreCase(details.categoryID))) continue;
 
 					JSONArray valsA = jobj.getJSONArray("data").getJSONObject(i).getJSONObject("values").getJSONObject("values").names();
 					for (int j = 0; j < valsA.length(); j++){
@@ -1366,41 +1394,41 @@ public class APIRequests {
 						current = Utils.compareStrings(label, subcategory);
 						if (current > high) {
 							high = current;
-							details[6] = jobj.getJSONArray("data").getJSONObject(i).getString("id");
-							details[7] = valsA.getString(j);
-							details[8] = " - " + label;
+							details.mainVariablesID = jobj.getJSONArray("data").getJSONObject(i).getString("id");
+							details.individualVariableID = valsA.getString(j);
+							details.categoryLabel = " - " + label;
 						}
 					}
 					
 				}
 
-				if ( details[6] == null || details[7] == null) {
-					details[10] = String.format("Couldn't find find sub-category \"%s\" for category %s.", subcategory, details[3]);
+				if ( details.mainVariablesID.equals("") || details.individualVariableID.equals("")) {
+					details.errorMessage = String.format("Couldn't find find sub-category \"%s\" for category %s.", subcategory, details.categoryName);
 					return false;
 				} else {
 					try{
-						jobj = getJSONFromURI(apiBase + String.format(apiLB, details[5], details[4]) + String.format(apiLBVarsAppend, details[6], details[7]));
+						jobj = getJSONFromURI(apiBase + String.format(apiLB, details.gameID, details.categoryID) + String.format(apiLBVarsAppend, details.mainVariablesID, details.individualVariableID));
 					} catch (Exception e) {
 						GUIMain.log(e);
-						details[10] = "Couldn't find sub-category records for " + subcategory;
+						details.errorMessage = "Couldn't find sub-category records for " + subcategory;
 						return false;
 					}
 					
 					if (jobj == null) {
-						details[10] = "Error finding sub-category details.";
+						details.errorMessage = "Error finding sub-category details.";
 						return false;
 					}
 
 					String delim = "";
 					StringBuilder sb = new StringBuilder();
 					if (jobj.getJSONObject("data").has("runs")) {
-						details[9] = jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
-						details[0] = getRuntimeFromDouble(jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
+						details.WRDate = jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
+						details.runtime = getRuntimeFromDouble(jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
 						for (int i = 0; i < jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").length(); i++) {
 							sb.append(delim).append(getUsernameFromURL(jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(i).getJSONObject("run").getJSONArray("players").getJSONObject(i).getString("uri")));
 							delim = ", ";
 						}
-						details[1] = sb.toString();
+						details.userName = sb.toString();
 					}
 				}
 
