@@ -1421,7 +1421,7 @@ public class APIRequests {
 
 					String delim = "";
 					StringBuilder sb = new StringBuilder();
-					if (jobj.getJSONObject("data").has("runs")) {
+					if (jobj.getJSONObject("data").has("runs") && jobj.getJSONObject("data").getJSONArray("runs").length() > 0) {
 						details.WRDate = jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
 						details.runtime = getRuntimeFromDouble(jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
 						for (int i = 0; i < jobj.getJSONObject("data").getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").length(); i++) {
@@ -1429,6 +1429,9 @@ public class APIRequests {
 							delim = ", ";
 						}
 						details.userName = sb.toString();
+					} else {
+						details.errorMessage = String.format("No runs exist for %s (%s%s).", details.gameName, details.categoryName, details.categoryLabel);
+						return false;
 					}
 				}
 
