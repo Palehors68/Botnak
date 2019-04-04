@@ -1,9 +1,11 @@
 package util.comm;
 
+import util.Timer;
 
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
+
 
 /**
  * This class is the container for all of the default
@@ -26,6 +28,7 @@ public class ConsoleCommand {
     public int classPermission;
     public String trigger;
     private final String helpText;
+    private Timer delayTimer;
 
     public enum Action { //one for each
         ADD_FACE,
@@ -100,15 +103,26 @@ public class ConsoleCommand {
      * @param certainPermission The certain users able to use the command.
      */
     public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission, String helpText) {
-        action = act;
-        this.trigger = trigger;
-        classPermission = classPerm;
-        this.certainPermission = certainPermission;
-        this.helpText = helpText;
+//        action = act;
+//        this.trigger = trigger;
+//        classPermission = classPerm;
+//        this.certainPermission = certainPermission;
+//        this.helpText = helpText;
+//        this.delayTimer = new Timer(0);
+        this(trigger, act, classPerm, certainPermission, helpText, 0);
     }
     
     public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission){
     	this(trigger, act, classPerm, certainPermission, "");
+    }
+    
+    public ConsoleCommand(String trigger, Action act, int classPerm, List<String> certainPermission, String helpText, int delay) {
+    	action = act;
+        this.trigger = trigger;
+        classPermission = classPerm;
+        this.certainPermission = certainPermission;
+        this.helpText = helpText;
+        this.delayTimer = new Timer(delay);
     }
 
     public Action getAction() {
@@ -138,13 +152,22 @@ public class ConsoleCommand {
     public String getHelpText(){
     	return helpText;
     }
+    
+    public Timer getDelayTimer() {
+        return delayTimer;
+    }
+    
+    public void setDelayTimer(int seconds){
+    	this.delayTimer = new Timer(seconds * 1000);
+    	this.delayTimer.setEndIn(1);
+    }
 
     @Override
     public String toString() {
         String certainPerm = certainPermission.isEmpty() ? "null" : certainPermission.stream().collect(Collectors.joining(","));
-        return getHelpText().equals("") ? 
-        		trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm :
-        			trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm + "[" + getHelpText();
+        return //getHelpText().equals("") ? 
+        		//trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm :
+        			trigger + "[" + action.toString() + "[" + classPermission + "[" + certainPerm + "[" + getHelpText() + "[" + delayTimer.period;
     }
     
     @Override

@@ -266,6 +266,9 @@ public class IRCBot extends MessageHandler {
 				}
 				ConsoleCommand consoleCommand = Utils.getConsoleCommand(trigger, channel, senderUser);
 				if (consoleCommand != null) {
+					if (!consoleCommand.getDelayTimer().isRunning()) {
+//						System.out.println("Command " + consoleCommand.getTrigger() + " shouldn't run.");
+					
 					Response commandResponse = null;
 					switch (consoleCommand.getAction()) {
 					case ADD_FACE:
@@ -671,14 +674,23 @@ public class IRCBot extends MessageHandler {
                     		try{
                     			seconds = Integer.parseInt(split[2]);
                     		} catch (Exception e){
-                    			
                     			break;
                     		}
-                    		
                     		comm.setDelayTimer(seconds);
                     		commandResponse.setResponseText("Successfully throttled " + commTrigger + " to " + seconds + " seconds.");
-                    		
-                    		
+                    	}
+                    	
+                    	ConsoleCommand ccomm = Utils.getConsoleCommand(commTrigger, ch.getName(), senderUser);
+                    	if (ccomm != null) {
+                    		int seconds;
+                    		try{
+                    			seconds = Integer.parseInt(split[2]);
+                    		} catch (Exception e){
+                    			break;
+                    		}
+                    		ccomm.setDelayTimer(seconds);
+                    		commandResponse.setResponseText("Successfully throttled " + commTrigger + " to " + seconds + " seconds.");
+                    		ccomm.getDelayTimer().reset();
                     	}
                     	break;
 					case THROTTLEBOT:
@@ -705,7 +717,12 @@ public class IRCBot extends MessageHandler {
                     	commandResponse.addSenderToResponseText(sender);
                     	break;
 					case FOLLOWAGE:
-                    	commandResponse = APIRequests.Twitch.getFollowAge(ch, senderUser);
+						if (first != "") {
+							commandResponse = APIRequests.Twitch.getFollowAge(first, senderUser);
+						} else {
+							commandResponse = APIRequests.Twitch.getFollowAge(ch.getUserName(), senderUser);
+						}
+                    	
                     	commandResponse.addSenderToResponseText(sender);
                     	break;
 					default:
@@ -715,13 +732,13 @@ public class IRCBot extends MessageHandler {
 					//					if (commandResponse != null && !"".equals(commandResponse.getResponseText()))
 					//						getBot().sendMessage(channel, commandResponse.getResponseText());
 
-					if (commandResponse != null && !"".equals(commandResponse.getResponseText())
-							&& (!ch.getChannelTimer().isRunning() || trigger.contains("throttle"))){
+if (commandResponse != null && !"".equals(commandResponse.getResponseText()) && ((!ch.getChannelTimer().isRunning() && !consoleCommand.getDelayTimer().isRunning()) || trigger.contains("throttle"))){
 						if (Settings.botWhisperMode.getValue() && commandResponse.isWhisperable()){
 							commandResponse.setResponseText("/w " + sender + " " + commandResponse.getResponseText());
 						}
 						getBot().sendMessage(channel, commandResponse.getResponseText());
-					}
+						consoleCommand.getDelayTimer().reset();				}
+				}
 				}
 
 				//text command

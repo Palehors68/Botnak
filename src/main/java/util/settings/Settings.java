@@ -830,8 +830,14 @@ public class Settings {
 						customUsers.addAll(Arrays.asList(split[3].split(",")));
 					}
 					String helpText = "";
-					if (split.length == 5) helpText = split[4];
-					GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers, helpText));
+					int delay = 0;
+					if (split.length >= 5) {
+						helpText = split[4];
+						try {
+							delay = Integer.parseInt(split[5]);
+						} catch (Exception e) {}
+					}
+					GUIMain.conCommands.add(new ConsoleCommand(split[0], a, classPerm, customUsers, helpText, delay));
 				}
 
 				// Did we miss any commands?

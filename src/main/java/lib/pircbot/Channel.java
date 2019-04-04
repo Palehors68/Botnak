@@ -416,15 +416,15 @@ private void load() {
     	Response toReturn = new Response();
     	String game = message.substring(5);
     	
-//    	String newGameID = APIRequests.SpeedRun.getGameID(game.toLowerCase());
+    	String newGameID = APIRequests.SpeedRun.getGameID(game.toLowerCase());
     	
-//    	if ( newGameID == null || "".equals(newGameID)){
-//    		toReturn.setResponseText("Unable to change game to " + game + "!");
-//    	} else if ( newGameID != gameID ) {
-//    		toReturn.setResponseText("Successfully changed game to " + APIRequests.SpeedRun.getGameName(game) + "!");
-//    		gameID = newGameID;
-//    		toReturn.wasSuccessful();
-//    	}
+    	if ( newGameID == null || "".equals(newGameID)){
+    		toReturn.setResponseText("Unable to change game to " + game + "!");
+    	} else if ( newGameID != gameID ) {
+    		toReturn.setResponseText("Successfully changed game!");
+    		gameID = newGameID;
+    		toReturn.wasSuccessful();
+    	}
     	
     	return toReturn;
     	

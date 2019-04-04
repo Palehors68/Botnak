@@ -449,6 +449,10 @@ public class Utils {
 			try {
 				String name = split[1];//name of the command, [0] is "addcommand"
 				if (name.startsWith("!")) name = name.substring(1);
+				if (name.length() == 0) {
+					toReturn.setResponseText("Error: no command name given!");
+					return toReturn;
+				}
 				if (getCommand(name, ch) != null) {
 					if (overwrite) {
 						removeCommands(name, ch);

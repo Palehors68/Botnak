@@ -593,13 +593,13 @@ public class APIRequests {
 			return toReturn;
 		}
 
-		public static Response getFollowAge(Channel ch, User u){
+		public static Response getFollowAge(String ch, User u){
 			Response toReturn = new Response();
 			HttpURLConnection connection;
 			try{
 				URL request = new URL("https://api.twitch.tv/helix/users/follows?from_id=" 
-						+ u.getUserID() 
-						+ "&to_id=" + getTwitchUserIDByLoginName(ch.getUserName()));
+						+ u.getUserID()
+						+ "&to_id=" + getTwitchUserIDByLoginName(ch));
 				connection = (HttpURLConnection) request.openConnection();
 				connection.setRequestProperty("Client-ID", CLIENT_ID);
 				String line = Utils.createAndParseBufferedReader(connection.getInputStream());
@@ -613,11 +613,11 @@ public class APIRequests {
 						Date mydate = Date.from(instant);
 						SimpleDateFormat formatter = new SimpleDateFormat("dd MMM yyyy");
 						int diff = 1 + ((int)(Duration.between(instant, Instant.now()).getSeconds()) / 86400);
-						toReturn.setResponseText("You have followed " + ch.getUserName() + 
+						toReturn.setResponseText("You have followed " + ch + 
 								" since " + formatter.format(mydate) +
 								" (" + diff + " days).");
 					} else {
-						toReturn.setResponseText("You don't follow " + ch.getUserName() + "!");
+						toReturn.setResponseText("You don't follow " + ch + "!");
 					}
 				}
 
@@ -1058,7 +1058,7 @@ public class APIRequests {
 		private static final String apiLB = "leaderboards/%s/category/%s?top=1";
 		private static final String apiVars = "games/%s/variables";
 		private static final String apiLBVarsAppend = "&var-%s=%s";
-		private static WRDetail details;
+		private static WRDetail details = new WRDetail();
 		
 		private static class WRDetail{
 			public String 	runtime, 
@@ -1091,8 +1091,7 @@ public class APIRequests {
 
 		private static JSONObject getJSONFromURI(String URI){
 			try{
-				URL url = new URL(URI);
-				String line = Utils.createAndParseBufferedReader(url.openStream());
+				String line = Utils.createAndParseBufferedReader(new URL(URI).openStream());
 				if (line != null){
 					return new JSONObject(line);
 				}
@@ -1354,7 +1353,7 @@ public class APIRequests {
 					details.WRDate = jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getString("date");
 					details.runtime = getRuntimeFromDouble(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONObject("times").getDouble("primary_t"));
 					for (int i = 0; i < jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").length(); i++) {
-						sb.append(delim).append(getUsernameFromURL(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(i).getJSONObject("run").getJSONArray("players").getJSONObject(i).getString("uri")));
+						sb.append(delim).append(getUsernameFromURL(jobj.getJSONArray("data").getJSONObject(0).getJSONArray("runs").getJSONObject(0).getJSONObject("run").getJSONArray("players").getJSONObject(i).getString("uri")));
 						delim = ", ";
 					}
 					details.userName = sb.toString();
@@ -1421,6 +1420,11 @@ public class APIRequests {
 
 			}
 			return true;
+		}
+		
+		public static String getGameID(String game) {
+			getGameDetails(game);
+			return details.gameID;
 		}
 	}
 }
